@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="th"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>SmartStock Lite</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon-48.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="theme-color" content="#0F766E">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="SmartStock">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#F8F9FA;--ink:#1f2937;--mute:#6b7280;--pri:#0F766E;--acc:#10B981;--line:#e5e7eb}
+*{box-sizing:border-box}html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:400 15px/1.5 Prompt,sans-serif;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+#home{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;max-width:420px;margin:auto}
+#home img{width:132px;height:132px;border-radius:30px;box-shadow:0 8px 24px rgba(15,118,110,.18)}
+h1{font-size:22px;margin:18px 0 4px}p{color:var(--mute);margin:0 0 18px}
+button,.btn{font:inherit;font-weight:500;border:0;border-radius:14px;padding:14px;width:100%;margin-top:10px;background:var(--acc);color:#fff;text-decoration:none;display:block}
+.alt{background:#e6f2f0;color:var(--pri)}
+input{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;font:inherit}
+#ios,#setup{display:none;text-align:left;background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:14px;width:100%}
+#wrap{display:none;position:fixed;inset:0;background:#fff}
+#wrap iframe{border:0;width:100%;height:100%}
+#fb{position:fixed;right:10px;bottom:calc(10px + env(safe-area-inset-bottom));width:auto;margin:0;padding:8px 12px;font-size:12px;opacity:.85}
+</style></head><body>
+<div id="home">
+ <img src="icons/icon-512.png" alt="SmartStock Lite">
+ <h1>SmartStock Lite</h1><p>ระบบ POS และสต๊อกสินค้า ติดตั้งเป็นไอคอนบนหน้าจอหลักได้เลย</p>
+ <button id="install" style="display:none">ติดตั้งแอปลงหน้าจอหลัก</button>
+ <div id="ios"><b>วิธีเพิ่มบน iPhone / iPad</b><br>1. แตะปุ่มแชร์ (สี่เหลี่ยมมีลูกศรขึ้น) ใน Safari<br>2. เลือก “เพิ่มไปยังหน้าจอโฮม”<br>3. แตะ “เพิ่ม”</div>
+ <button class="alt" id="open">เปิดใช้งานระบบ</button>
+ <div id="setup"><b>ตั้งค่าครั้งแรก</b><p style="margin:4px 0 8px">วางลิงก์ Web App (ลงท้ายด้วย /exec)</p>
+  <input id="url" placeholder="https://script.google.com/macros/s/.../exec" inputmode="url"><button id="save">บันทึกลิงก์</button></div>
+ <button class="alt" id="change" style="display:none;margin-top:18px;font-size:13px;padding:8px">เปลี่ยนลิงก์ระบบ</button>
+</div>
+<div id="wrap"><iframe id="fr" allow="camera; clipboard-read; clipboard-write"></iframe><a class="btn" id="fb" target="_blank" rel="noopener">เปิดในเบราว์เซอร์</a></div>
+<script>
+const $=s=>document.querySelector(s),KEY='smartstock_url',cfg=window.SMARTSTOCK||{};
+const standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+const getUrl=()=>cfg.APP_URL||localStorage.getItem(KEY)||'';
+function launch(){const u=getUrl();if(!u){$('#setup').style.display='block';return}
+ if(cfg.MODE==='redirect'){location.href=u;return}
+ $('#fr').src=u;$('#fb').href=u;$('#wrap').style.display='block'}
+$('#open').onclick=launch;
+$('#save').onclick=()=>{const v=$('#url').value.trim();if(!/^https:\/\/script\.google\.com\/.+\/exec/.test(v)){alert('ลิงก์ไม่ถูกต้อง ต้องขึ้นต้นด้วย https://script.google.com และลงท้ายด้วย /exec');return}
+ localStorage.setItem(KEY,v);$('#setup').style.display='none';launch()};
+$('#change').onclick=()=>{$('#url').value=getUrl();$('#setup').style.display='block'};
+if(getUrl()&&!cfg.APP_URL)$('#change').style.display='block';
+let dp;addEventListener('beforeinstallprompt',e=>{e.preventDefault();dp=e;$('#install').style.display='block'});
+$('#install').onclick=async()=>{if(!dp)return;dp.prompt();await dp.userChoice;dp=null;$('#install').style.display='none'};
+addEventListener('appinstalled',()=>{$('#install').style.display='none'});
+if(/iphone|ipad|ipod/i.test(navigator.userAgent)&&!standalone)$('#ios').style.display='block';
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+if(standalone)launch();
+</script></body></html>
