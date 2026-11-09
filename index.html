@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="th"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SmartStock Lite</title>
+<meta name="theme-color" content="#1E293B">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="SmartStock">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+html,body{height:100%;margin:0;background:#1E293B;font-family:Prompt,system-ui,sans-serif}
+#shell{position:fixed;inset:0;display:flex;flex-direction:column;background:#1E293B;padding-top:env(safe-area-inset-top)}
+#fr{flex:1;width:100%;border:0;background:#F8F9FB}
+#bot{flex:none;height:env(safe-area-inset-bottom);background:#fff}
+#ld{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#F8F9FB;color:#475569;text-align:center;padding:24px}
+#ld img{width:96px;height:96px;border-radius:22px}
+.sp{width:28px;height:28px;border:3px solid #CBD5E1;border-top-color:#2563EB;border-radius:50%;animation:s 1s linear infinite}
+@keyframes s{to{transform:rotate(360deg)}}
+#ld button,#ld a{background:#2563EB;color:#fff;border:0;border-radius:8px;padding:.6rem 1rem;font:inherit;text-decoration:none}
+.hide{display:none!important}
+</style></head>
+<body>
+<div id="shell">
+ <iframe id="fr" title="SmartStock Lite" allow="camera; clipboard-write; fullscreen"></iframe>
+ <div id="bot"></div>
+ <div id="ld"><img src="icons/icon-192.png" alt=""><div class="sp" id="sp"></div><div id="lt">กำลังเปิด SmartStock Lite...</div>
+  <div id="la" class="hide" style="display:flex;gap:10px"><button onclick="load()">ลองใหม่</button><a id="direct" target="_blank" rel="noopener">เปิดโดยตรง</a></div></div>
+</div>
+<script>
+/* ===== ตั้งค่า: ใส่ลิงก์ Web App ของ Apps Script (ลงท้ายด้วย /exec) ===== */
+const APP_URL = 'PASTE_YOUR_WEB_APP_URL_HERE';
+/* ================================================================ */
+const $ = id => document.getElementById(id), fr = $('fr');
+const go = (new URLSearchParams(location.search).get('go') || '').replace(/[^a-z]/g, '');
+const ready = /^https:\/\/script\.google\.com\/.+\/exec/.test(APP_URL);
+let slow = 0;
+function fail(msg) { $('sp').classList.add('hide'); $('lt').textContent = msg; $('la').classList.remove('hide'); if (ready) $('direct').href = APP_URL; else $('direct').classList.add('hide'); }
+function load() {
+  if (!ready) return fail('ยังไม่ได้ตั้งค่าลิงก์ Web App — เปิดไฟล์ index.html แล้วใส่ลิงก์ในบรรทัด APP_URL');
+  if (!navigator.onLine) return fail('ไม่มีอินเทอร์เน็ต กรุณาเชื่อมต่อแล้วลองใหม่');
+  $('ld').classList.remove('hide'); $('sp').classList.remove('hide'); $('la').classList.add('hide'); $('lt').textContent = 'กำลังเปิด SmartStock Lite...';
+  clearTimeout(slow); slow = setTimeout(() => { $('lt').textContent = 'ใช้เวลานานกว่าปกติ... (Google กำลังเริ่มระบบ)'; $('la').classList.remove('hide'); if (ready) $('direct').href = APP_URL; }, 12000);
+  fr.src = APP_URL + (go ? (APP_URL.includes('?') ? '&' : '?') + 'go=' + go : '');
+}
+fr.addEventListener('load', () => { if (fr.src && fr.src !== 'about:blank') { clearTimeout(slow); $('ld').classList.add('hide'); } });
+addEventListener('online', () => { if (!$('ld').classList.contains('hide')) load(); });
+
+/* ===== ติดตั้งไอคอน: หน้าตั้งค่าในแอปขอสถานะ/สั่งติดตั้งผ่านข้อความ ===== */
+let dp = null, peer = null;
+const standalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const state = () => ({ type: 'SSL_STATE', canPrompt: !!dp, installed: standalone(), ios });
+const push = () => { try { peer && peer.postMessage(state(), '*'); } catch (e) {} };
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); dp = e; push(); });
+addEventListener('appinstalled', () => { dp = null; push(); });
+addEventListener('message', e => {
+  if (!/^https:\/\/([a-z0-9-]+\.)*(googleusercontent|google)\.com$/.test(e.origin) || !e.data) return;
+  if (e.data.type === 'SSL_HELLO') { peer = e.source; push(); }
+  if (e.data.type === 'SSL_INSTALL' && dp) { const p = dp; p.prompt(); p.userChoice.then(() => { dp = null; push(); }); }
+});
+if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+load();
+</script></body></html>
