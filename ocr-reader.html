@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="th"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>อ่านรูปคำสั่งซื้อด้วย AI · SmartStock Lite</title>
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+/* ธีมเดียวกับ SmartStock Lite: พื้น #F8FAFC / header #1E293B / ปุ่มหลัก #2563EB / ฟอนต์ Prompt */
+:root{--bg:#F8FAFC;--ink:#1E293B;--soft:#64748B;--line:#CBD5E1;--blue:#2563EB;--blue-bg:#EFF6FF;--ok:#047857;--ok-bg:#ECFDF5;--bad:#B91C1C;--bad-bg:#FEF2F2;--warn:#B45309;--warn-bg:#FFFBEB}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Prompt',sans-serif;padding-bottom:40px;-webkit-text-size-adjust:100%}
+header{position:sticky;top:0;z-index:20;background:var(--ink);color:#fff}
+header .in{max-width:42rem;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem}
+header .logo{display:flex;align-items:center;gap:.5rem;font-weight:600}
+header .logo span{display:grid;place-items:center;width:2rem;height:2rem;border-radius:.5rem;background:var(--blue)}
+header button{background:none;border:0;color:#fff;font-size:1.25rem;cursor:pointer;padding:.25rem}
+main{max-width:42rem;margin:0 auto;padding:1rem}
+h1{font-size:1.1rem;margin:0 0 .25rem}
+.sub{font-size:.8rem;color:var(--soft);margin:0 0 1rem;line-height:1.55}
+.card{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(15,23,42,.08);padding:1rem;margin-bottom:1rem}
+.card h2{font-size:.95rem;font-weight:600;margin:0 0 .75rem}
+label{display:block;font-size:.85rem;margin-top:.75rem}
+label:first-child{margin-top:0}
+.inp{width:100%;border:1px solid var(--line);border-radius:8px;padding:.55rem .75rem;background:#fff;font:inherit;font-size:.9rem;color:var(--ink);margin-top:.25rem}
+.inp:focus{outline:2px solid var(--blue);border-color:var(--blue)}
+.btn{display:flex;align-items:center;justify-content:center;gap:.4rem;width:100%;background:var(--blue);color:#fff;border:0;border-radius:8px;padding:.7rem 1rem;font:inherit;font-weight:500;cursor:pointer}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.btn.ok{background:#047857}
+.btn:focus-visible,header button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.hint{font-size:.75rem;color:var(--soft);margin-top:.5rem;line-height:1.55}
+.hint a{color:var(--blue)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+.flex{display:flex;gap:.5rem;align-items:center}
+.hidden{display:none!important}
+.notice{border-radius:8px;padding:.6rem .8rem;font-size:.8rem;line-height:1.5;margin-bottom:1rem;background:var(--warn-bg);color:var(--warn)}
+
+/* รูป */
+.thumbs{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.75rem}
+.thumb{position:relative;width:84px;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:#fff}
+.thumb img{width:100%;height:84px;object-fit:cover;display:block}
+.thumb .rm{position:absolute;top:2px;right:2px;background:rgba(15,23,42,.6);color:#fff;border:0;width:22px;height:22px;border-radius:50%;font-size:.7rem;cursor:pointer}
+.thumb .st{font-size:.65rem;text-align:center;padding:.2rem .1rem;color:var(--soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.thumb.bad{border-color:#EF4444}.thumb.bad .st{color:var(--bad)}
+.thumb.ready .st{color:var(--ok)}
+
+/* ความคืบหน้า */
+.spin{display:inline-block;width:1rem;height:1rem;border:2px solid #CBD5E1;border-top-color:var(--blue);border-radius:50%;animation:sp .8s linear infinite;vertical-align:-2px}
+@keyframes sp{to{transform:rotate(360deg)}}
+#steps{list-style:none;margin:0;padding:0}
+#steps li{display:flex;gap:.6rem;align-items:flex-start;padding:.4rem 0;font-size:.85rem;color:var(--soft)}
+#steps li i,#steps li .spin{flex:0 0 1.1rem;margin-top:.1rem;font-size:1.05rem;text-align:center}
+#steps li.active{color:var(--ink);font-weight:500}
+#steps li.done{color:var(--ink)}#steps li.done i{color:var(--ok)}
+#steps li.error{color:var(--bad)}#steps li.error i{color:var(--bad)}
+#steps small{display:block;font-weight:400;font-size:.75rem;color:var(--soft)}
+.pghead{display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem;font-size:.9rem}
+#pgTime{font-size:.75rem;color:var(--soft)}
+#live{background:var(--blue-bg);color:#1E40AF;border-radius:8px;padding:.6rem .8rem;font-size:.8rem;line-height:1.55;margin-top:.5rem}
+.bar{height:4px;border-radius:4px;background:#E2E8F0;overflow:hidden;margin-top:.6rem}
+.bar i{display:block;height:100%;width:30%;background:var(--blue);border-radius:4px;animation:bar 1.4s ease-in-out infinite}
+@keyframes bar{0%{margin-left:-30%}100%{margin-left:100%}}
+
+/* error */
+.err{background:var(--bad-bg);border:1px solid #FCA5A5;color:var(--bad);border-radius:12px;padding:.9rem;margin-bottom:1rem;font-size:.85rem;line-height:1.55}
+.err b{display:block;margin-bottom:.25rem}
+.err ul{margin:.4rem 0 0 1.1rem;padding:0;color:#7F1D1D}
+.err details{margin-top:.6rem;color:#7F1D1D}
+.err pre{white-space:pre-wrap;word-break:break-word;font-size:.7rem;background:#fff;border-radius:6px;padding:.5rem;margin:.4rem 0 0;max-height:12rem;overflow:auto}
+.err .btns{display:flex;gap:.5rem;margin-top:.7rem}
+.err .btns .btn{padding:.5rem .75rem;font-size:.8rem}
+.okbox{background:var(--ok-bg);color:var(--ok);border-radius:8px;padding:.6rem .8rem;font-size:.8rem;margin-bottom:1rem}
+
+/* รายการสินค้า */
+.it{border:1px solid var(--line);border-radius:12px;padding:.9rem;margin-bottom:.75rem;background:#fff;position:relative}
+.it .ttl{font-weight:600;font-size:.85rem;margin-bottom:.5rem;padding-right:3.5rem}
+.it .rmi{position:absolute;top:.7rem;right:.8rem;background:none;border:0;color:#EF4444;font:inherit;font-size:.8rem;cursor:pointer}
+.mini{flex:0 0 2.4rem;border:1px solid var(--line);border-radius:8px;background:#fff;cursor:pointer;margin-top:.25rem;font-size:.9rem}
+.match{font-size:.72rem;margin-top:.2rem;min-height:1em}
+.dc{display:flex;gap:.4rem;margin-bottom:.4rem}
+.dc .inp{margin-top:0}
+.dc .rmd{background:none;border:0;color:#EF4444;cursor:pointer;font-size:1rem}
+.sum{display:flex;justify-content:space-between;font-weight:600;padding-top:.75rem;border-top:1px solid #E2E8F0;margin-top:.75rem}
+.lnk{background:none;border:0;color:var(--blue);font:inherit;font-size:.85rem;cursor:pointer;padding:0}
+.sec{display:flex;justify-content:space-between;align-items:center;margin:1rem 0 .5rem}
+.sec h2{margin:0}
+</style></head>
+<body>
+<header><div class="in">
+  <div class="logo"><span><i class="bi bi-camera"></i></span>อ่านรูปคำสั่งซื้อด้วย AI</div>
+  <button type="button" id="closeBtn" aria-label="ปิดหน้านี้"><i class="bi bi-x-lg"></i></button>
+</div></header>
+
+<main>
+  <h1>อัปโหลดรูปคำสั่งซื้อ</h1>
+  <p class="sub">เลือกได้หลายรูป (หน้ารายละเอียดคำสั่งซื้อ + รายการสินค้า + สรุปยอด) ผลที่อ่านได้จะแสดงให้ตรวจสอบและแก้ไขในหน้านี้ก่อนเสมอ แล้วค่อยส่งกลับไปเติมฟอร์ม — <b>ยังไม่บันทึกอัตโนมัติ</b></p>
+
+  <div class="notice hidden" id="noOpener"><i class="bi bi-info-circle"></i> หน้านี้ไม่ได้ถูกเปิดจากปุ่มในฟอร์ม "ซื้อสินค้า" จึงใช้อ่านรูปทดสอบได้ แต่จะส่งผลกลับไปฟอร์มไม่ได้ (คัดลอกผลลัพธ์ JSON ได้แทน)</div>
+
+  <div class="card">
+    <label for="apiKey">Gemini API Key <span style="color:var(--soft)">(ฟรี · ใส่ครั้งเดียว จำไว้ในเครื่องนี้)</span></label>
+    <div class="flex">
+      <input class="inp" type="password" id="apiKey" placeholder="วางคีย์ที่นี่" autocomplete="off" style="margin-top:.25rem">
+      <button type="button" class="mini" id="eyeBtn" aria-label="แสดง/ซ่อนคีย์"><i class="bi bi-eye"></i></button>
+    </div>
+    <div class="hint">ยังไม่มีคีย์? ขอฟรีที่ <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> (ล็อกอิน Gmail แล้วกด Create API Key)<br>คีย์เก็บใน localStorage ของเบราว์เซอร์เครื่องนี้เท่านั้น ไม่ส่งไปที่อื่นนอกจาก Google</div>
+  </div>
+
+  <div class="card">
+    <h2>รูปภาพ</h2>
+    <input type="file" id="fileInput" accept="image/*" multiple class="hidden">
+    <button type="button" class="btn ghost" id="pickBtn"><i class="bi bi-images"></i> เลือกรูป (เลือกได้หลายรูป)</button>
+    <div class="thumbs" id="thumbs"></div>
+    <div class="hint" id="imgHint">ระบบจะย่อรูปให้อัตโนมัติก่อนส่ง เพื่อให้อ่านเร็วขึ้น</div>
+  </div>
+
+  <button type="button" class="btn" id="readBtn"><i class="bi bi-stars"></i> อ่านด้วย AI</button>
+
+  <div class="card hidden" id="progress" style="margin-top:1rem">
+    <div class="pghead"><b id="pgTitle">กำลังทำงาน</b><span id="pgTime"></span></div>
+    <ol id="steps">
+      <li data-s="prep"><i class="bi bi-circle"></i><div>เตรียมรูป<small></small></div></li>
+      <li data-s="send"><i class="bi bi-circle"></i><div>ส่งรูปให้ AI และรอผล<small></small></div></li>
+      <li data-s="read"><i class="bi bi-circle"></i><div>AI กำลังเขียนผลลัพธ์<small></small></div></li>
+      <li data-s="check"><i class="bi bi-circle"></i><div>ตรวจผลลัพธ์<small></small></div></li>
+    </ol>
+    <div id="live"></div>
+    <div class="bar" id="bar"><i></i></div>
+    <button type="button" class="btn ghost" id="cancelBtn" style="margin-top:.75rem"><i class="bi bi-x-circle"></i> ยกเลิกการอ่าน</button>
+  </div>
+
+  <div id="msgArea" style="margin-top:1rem"></div>
+
+  <div class="card hidden" id="review">
+    <h2><i class="bi bi-check2-square" style="color:var(--ok)"></i> ตรวจสอบผลลัพธ์ก่อนส่งไปกรอกฟอร์ม</h2>
+    <label>ร้านค้า<input class="inp" id="rStore" placeholder="เช่น Makro (ถ้าไม่มีในรูป กรอกเองได้เลย)"></label>
+    <div class="row">
+      <label>วันที่ซื้อ<input class="inp" id="rDate" type="date"></label>
+      <label>เลขที่คำสั่งซื้อ<input class="inp" id="rOrderNo"></label>
+    </div>
+
+    <div class="sec"><h2>สินค้าในออเดอร์</h2><button type="button" class="lnk" id="addItemBtn"><i class="bi bi-plus-lg"></i> เพิ่มสินค้า</button></div>
+    <div id="items"></div>
+
+    <h2 style="margin-top:1rem">ค่าใช้จ่ายรวมทั้งออเดอร์</h2>
+    <div class="hint" style="margin:-.5rem 0 .5rem">ระบบหารตามสัดส่วนราคาสินค้าให้อัตโนมัติ</div>
+    <div class="row">
+      <label>ค่าขนส่งรวม<input class="inp" id="rShip" type="number" min="0" inputmode="decimal" value="0"></label>
+      <label>ค่าใช้จ่ายอื่นๆ รวม<input class="inp" id="rOther" type="number" min="0" inputmode="decimal" value="0"></label>
+    </div>
+    <div style="margin-top:.75rem;font-size:.85rem">ส่วนลดรวม</div>
+    <div id="discs" style="margin-top:.25rem"></div>
+    <button type="button" class="lnk" id="addDiscBtn"><i class="bi bi-plus-lg"></i> เพิ่มส่วนลด</button>
+
+    <div class="sum"><span>ยอดสุทธิ (เทียบกับในรูป)</span><span id="sumNet">฿0</span></div>
+    <div class="hint" id="sumHint"></div>
+
+    <button type="button" class="btn ok" id="confirmBtn" style="margin-top:1rem"><i class="bi bi-send-check"></i> ยืนยัน ส่งกลับไปกรอกฟอร์ม</button>
+    <button type="button" class="btn ghost hidden" id="copyJsonBtn" style="margin-top:.5rem"><i class="bi bi-clipboard"></i> คัดลอกผลลัพธ์ (JSON)</button>
+  </div>
+</main>
+
+<datalist id="dlCat"></datalist><datalist id="dlGrp"></datalist>
+
+<script>
+'use strict';
+/* ==================== ตั้งค่า ==================== */
+const API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+// ลองไล่ทีละโมเดลตามลำดับ (ถ้ามีรุ่นใหม่กว่านี้ แก้/เพิ่มชื่อในลิสต์นี้ได้เลย)
+const MODELS = ['gemini-flash-latest', 'gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-3.5-flash-lite', 'gemini-2.5-flash-lite'];
+const MAX_SHORT = 1200;      // ด้านสั้นของรูปไม่เกินนี้ (px) — สกรีนช็อตมือถือกว้าง ~1080 จึงไม่ถูกลดคุณภาพ
+const MAX_LONG = 4000;       // ด้านยาวไม่เกินนี้ (px) รองรับสกรีนช็อตยาว
+const JPEG_Q = 0.85;
+const FIRST_BYTE_MS = 30000; // รอ AI ตอบแรกไม่เกิน 30 วินาที ไม่งั้นสลับโมเดล
+const TOTAL_MS = 100000;     // เวลารวมทุกโมเดลไม่เกิน 100 วินาที
+const IDLE_MS = 25000;       // ระหว่างที่ AI กำลังเขียน ถ้าเงียบเกิน 25 วินาที ถือว่าค้าง
+const MAX_PAYLOAD = 18 * 1024 * 1024;
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const norm = s => String(s || '').trim().toLowerCase().replace(/\s+/g, '');
+const num = v => parseFloat(v) || 0;
+const fm = n => '฿' + Number(n || 0).toLocaleString('th-TH', { maximumFractionDigits: 2 });
+const kb = n => n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+
+/* ==================== เชื่อมกับหน้าฟอร์ม (opener) ==================== */
+const SESSION = new URLSearchParams(location.search).get('session');
+let masterData = { categories: [], productGroups: [] };
+const hasOpener = !!(window.opener && !window.opener.closed);
+if (hasOpener) { try { window.opener.postMessage({ type: 'OCR_READY', session: SESSION }, '*'); } catch (e) {} }
+else $('noOpener').classList.remove('hidden');
+
+window.addEventListener('message', ev => {
+  const d = ev.data;
+  if (!d || d.type !== 'INIT_DATA' || d.session !== SESSION) return;
+  if (ev.source !== window.opener) return; // รับเฉพาะจากหน้าที่เปิดเรา
+  masterData = d.payload || { categories: [], productGroups: [] };
+  fillDatalists();
+  document.querySelectorAll('.it').forEach(r => checkMatch(r));
+});
+function fillDatalists() {
+  $('dlCat').innerHTML = masterData.categories.map(c => `<option value="${esc(c.name)}">`).join('');
+  $('dlGrp').innerHTML = masterData.productGroups.map(g => `<option value="${esc(g.name)}">`).join('');
+}
+$('closeBtn').onclick = () => { window.close(); setTimeout(() => { if (history.length > 1) history.back(); }, 300); };
+
+/* ==================== API key ==================== */
+const keyEl = $('apiKey');
+try { keyEl.value = localStorage.getItem('gemini_api_key') || ''; } catch (e) {}
+keyEl.addEventListener('input', () => { try { localStorage.setItem('gemini_api_key', keyEl.value.trim()); } catch (e) {} });
+$('eyeBtn').onclick = () => { const p = keyEl.type === 'password'; keyEl.type = p ? 'text' : 'password'; $('eyeBtn').innerHTML = `<i class="bi bi-eye${p ? '-slash' : ''}"></i>`; };
+
+/* ==================== รูป: เลือก + ย่อขนาดล่วงหน้า (ทำเบื้องหลังทันทีที่เลือก) ==================== */
+let imgs = []; // {id,file,url,state:'prep'|'ready'|'bad',b64,mime,size,origSize,error,promise}
+let imgSeq = 0;
+$('pickBtn').onclick = () => $('fileInput').click();
+$('fileInput').onchange = e => {
+  Array.from(e.target.files).forEach(f => {
+    const it = { id: ++imgSeq, file: f, url: URL.createObjectURL(f), state: 'prep', origSize: f.size };
+    it.promise = prepareImage(f).then(r => { Object.assign(it, r, { state: 'ready' }); }).catch(err => { it.state = 'bad'; it.error = err.message || String(err); }).finally(renderThumbs);
+    imgs.push(it);
+  });
+  e.target.value = '';
+  renderThumbs();
+};
+function renderThumbs() {
+  const w = $('thumbs'); w.innerHTML = '';
+  imgs.forEach(it => {
+    const d = document.createElement('div');
+    d.className = 'thumb ' + (it.state === 'ready' ? 'ready' : it.state === 'bad' ? 'bad' : '');
+    const st = it.state === 'prep' ? 'กำลังย่อรูป…' : it.state === 'bad' ? 'อ่านไฟล์ไม่ได้' : `${kb(it.origSize)} → ${kb(it.size)}`;
+    d.innerHTML = `<img src="${it.url}" alt=""><button type="button" class="rm" aria-label="ลบรูป">✕</button><div class="st" title="${esc(it.error || st)}">${st}</div>`;
+    d.querySelector('.rm').onclick = () => { imgs = imgs.filter(x => x !== it); URL.revokeObjectURL(it.url); renderThumbs(); };
+    w.appendChild(d);
+  });
+}
+function loadImage(url) {
+  return new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => rej(new Error('เปิดไฟล์รูปไม่ได้ (รองรับ JPG / PNG / WebP — ถ้าเป็น HEIC ให้แปลงเป็น JPG ก่อน)')); im.src = url; });
+}
+function blobToB64(blob) {
+  return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = () => rej(new Error('อ่านไฟล์ไม่สำเร็จ')); r.readAsDataURL(blob); });
+}
+async function prepareImage(file) {
+  const im = await loadImage(URL.createObjectURL(file));
+  const w = im.naturalWidth, h = im.naturalHeight, short = Math.min(w, h), long = Math.max(w, h);
+  const scale = Math.min(1, MAX_SHORT / short, MAX_LONG / long);
+  // รูปเล็กอยู่แล้ว (ไม่ต้องย่อ และไฟล์ไม่ใหญ่) ส่งต้นฉบับเลย
+  if (scale >= 1 && file.size <= 500 * 1024 && /^image\/(jpeg|png|webp)$/.test(file.type)) {
+    return { b64: await blobToB64(file), mime: file.type, size: file.size };
+  }
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(w * scale)); c.height = Math.max(1, Math.round(h * scale));
+  const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(im, 0, 0, c.width, c.height);
+  const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', JPEG_Q));
+  if (!blob) throw new Error('ย่อรูปไม่สำเร็จ');
+  return { b64: await blobToB64(blob), mime: 'image/jpeg', size: blob.size };
+}
+
+/* ==================== Schema + Prompt ==================== */
+const RESPONSE_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    store_name: { type: 'STRING', description: 'ชื่อร้านค้า/ผู้ขาย ถ้ามีแสดงในภาพ (เช่น ชื่อร้านบน Shopee/Lazada) ถ้าไม่เห็นให้เว้นว่าง' },
+    order_no: { type: 'STRING' },
+    order_date: { type: 'STRING', description: 'รูปแบบ YYYY-MM-DD ถ้าอ่านไม่ได้ให้เว้นว่าง' },
+    shipping: { type: 'NUMBER', description: 'ค่าจัดส่งรวมทั้งออเดอร์ (บาท) ถ้ามีบรรทัดแยกแสดงในสรุปคำสั่งซื้อ ถ้าไม่เห็นให้ใส่ 0' },
+    other_cost: { type: 'NUMBER', description: 'ค่าธรรมเนียม/ค่าใช้จ่ายอื่นๆ รวม (บาท) ถ้าไม่เห็นให้ใส่ 0' },
+    discounts: {
+      type: 'ARRAY',
+      description: 'ส่วนลดรวมทั้งออเดอร์ (ถ้ามีบรรทัดแยก เช่น ส่วนลดโค้ด, ส่วนลดร้านค้า) ถ้าไม่เห็นให้เว้นว่างเป็น array ว่าง',
+      items: { type: 'OBJECT', properties: { name: { type: 'STRING' }, amount: { type: 'NUMBER' } } }
+    },
+    items: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          product_name: { type: 'STRING' },
+          product_url: { type: 'STRING', description: 'ลิงก์สินค้า ถ้ามีแสดงในภาพ ปกติจะไม่มี เว้นว่างได้' },
+          qty: { type: 'NUMBER' },
+          unit_price: { type: 'NUMBER', description: 'ราคาต่อชิ้นของสินค้ารายการนี้ (บาท) — ในสกรีนช็อต Shopee/Lazada ตัวเลขราคาที่แสดงต่อท้ายแต่ละรายการสินค้า (เช่น ฿54) มักเป็นราคาต่อชิ้นเสมอ ไม่ใช่ราคารวมของบรรทัด ให้ใส่ตัวเลขนั้นตรงนี้' },
+          total_price: { type: 'NUMBER', description: 'ราคารวมของรายการนี้ = unit_price คูณ qty ให้คำนวณเอง (เว้นแต่ภาพนั้นแสดงราคารวมแยกไว้ชัดเจนต่างหากจากราคาต่อชิ้น ก็ให้อ่านตามที่เห็นแทน)' }
+        },
+        required: ['product_name', 'qty', 'unit_price', 'total_price']
+      }
+    }
+  },
+  required: ['items']
+};
+
+const PROMPT = `คุณกำลังดูภาพหน้าจอ "รายละเอียดคำสั่งซื้อ" จากแอปช้อปปิ้งออนไลน์ (เช่น Shopee, Lazada) อาจมีหลายภาพ
+- ภาพหนึ่งอาจเป็นรายการสินค้าที่ซื้อ (ชื่อสินค้า/ตัวเลือกสินค้า, จำนวน xN, ราคา)
+- อีกภาพอาจเป็นข้อมูลคำสั่งซื้อ (หมายเลขคำสั่งซื้อ, วันเวลาที่สั่งซื้อ, ชื่อร้านค้า)
+- อีกภาพอาจเป็นสรุปยอดชำระ (ราคาสินค้ารวม, ค่าจัดส่ง, ส่วนลด, ยอดรวมสุทธิ)
+ให้รวมข้อมูลจากทุกภาพเป็นคำสั่งซื้อเดียวกัน แล้วดึงข้อมูลออกมาเป็น JSON ตาม schema ที่กำหนด
+- product_name: ใช้ชื่อสินค้าที่เจาะจงที่สุดที่เห็น (รวมสี/รุ่น/ตัวเลือกถ้ามี) ไม่ใช่ชื่อหมวดกว้างๆ
+- qty: จำนวนที่ซื้อของรายการนั้น (ตัวเลขหลัง x)
+- unit_price / total_price: สังเกตว่าในรายการสินค้าแบบ Shopee/Lazada ตัวเลขราคาที่แสดงต่อท้ายแต่ละบรรทัด (เช่น "฿54") คือ "ราคาต่อชิ้น" ไม่ใช่ราคารวมของบรรทัด แม้จำนวนจะเป็น x2, x3 ก็ตาม ให้ใส่ตัวเลขนั้นเป็น unit_price แล้วคำนวณ total_price = unit_price × qty เอง (ห้ามเอาราคาต่อชิ้นไปใส่ใน total_price เฉยๆ โดยไม่คูณจำนวน) — มีเพียงบางกรณีเท่านั้นที่ภาพแสดงราคารวมของบรรทัดแยกไว้ต่างหากชัดเจน (มีทั้งราคาต่อชิ้นและราคารวมคนละตัวเลข) ให้อ่าน total_price ตามที่เห็นแทนการคำนวณ
+- shipping / other_cost / discounts: อยู่ในส่วน "สรุปคำสั่งซื้อ" ท้ายๆ ภาพ (ถ้ามี) ให้แยกแยะด้วยเครื่องหมายหน้าตัวเลข:
+  - บรรทัดที่ตัวเลข "ไม่มีเครื่องหมายลบ" นำหน้า เช่น "ค่าจัดส่ง ฿100" → ใส่ใน shipping (ถ้ามีค่าธรรมเนียมอื่นที่ไม่ใช่ค่าจัดส่งและไม่ใช่ส่วนลด ใส่ใน other_cost)
+  - บรรทัดที่ตัวเลข "มีเครื่องหมายลบ (-)" นำหน้า เช่น "ส่วนลดค่าจัดส่ง -฿100", "ใช้โค้ด Shopee แล้ว -฿341" → ถือเป็นส่วนลดทั้งหมด ใส่เป็นรายการใน discounts (name = ข้อความบรรทัดนั้น, amount = ตัวเลขแบบเป็นค่าบวก เช่น 100, 341)
+  - ถ้าภาพที่ให้มาไม่มีส่วนสรุปยอดแบบนี้เลย ห้ามเดา ให้ shipping/other_cost เป็น 0 และ discounts เป็น array ว่าง
+- store_name: มักอยู่ "บนสุด" ของหน้ารายละเอียดคำสั่งซื้อ เสมอให้ตรวจดูส่วนบนสุดของทุกภาพก่อนก่อนสรุปว่าไม่มี
+  - บางร้านมีป้าย/แบดจ์นำหน้าชื่อร้าน เช่น "ร้านแนะนำดีเยี่ยม", "Preferred", "Mall" — ถ้าเจอแบบนี้ ให้เอาเฉพาะชื่อร้านที่ตามหลังป้าย ไม่เอาข้อความป้ายมาเป็นชื่อร้าน (เช่น "ร้านแนะนำดีเยี่ยม RealWoodPC" → ชื่อร้านคือ "RealWoodPC")
+  - บางร้านไม่มีป้ายใดๆ เลย โชว์ชื่อร้านตรงๆ อยู่แถวบนสุด (อาจมีไอคอนร้าน/โลโก้อยู่ข้างๆ หรือมีปุ่ม "เข้าดูร้านค้า"/"ดูร้าน" อยู่ใกล้ๆ) ให้ใช้ชื่อนั้นเป็น store_name ได้เลย
+  - ถ้าหาไม่เจอจริงๆ ทั้งสองแบบ (มีแต่รายการสินค้ากับเลขคำสั่งซื้อ ไม่มีส่วนหัวร้านค้าเลยในทุกภาพที่ให้มา) ให้เว้นว่างไว้ ห้ามเดาจากชื่อสินค้าหรือแบรนด์สินค้า
+- ถ้ารายการสินค้าไหนมีข้อความกำกับว่า "คืนเงินแล้ว" หรือถูกยกเลิก ให้ตัดรายการนั้นออกทั้งหมด ห้ามใส่ในผลลัพธ์ items เด็ดขาด (ไม่ต้องนำราคาหรือจำนวนของรายการนั้นมารวมในการคำนวณอะไรทั้งสิ้น)
+- ห้ามเดาข้อมูลที่ไม่ปรากฏในภาพเด็ดขาด เว้นว่างไว้ดีกว่าเดา
+ตอบกลับเป็น JSON เท่านั้น`;
+
+/* ==================== แสดงความคืบหน้า / error ==================== */
+let t0 = 0, tick = null, curStage = '', liveBase = '';
+const STAGE_ORDER = ['prep', 'send', 'read', 'check'];
+function setStep(s, state, sub) {
+  const li = document.querySelector(`#steps li[data-s="${s}"]`); if (!li) return;
+  li.className = state;
+  const ic = li.firstElementChild;
+  if (state === 'active') { if (!ic.classList.contains('spin')) { const sp = document.createElement('span'); sp.className = 'spin'; li.replaceChild(sp, ic); } }
+  else {
+    let el = li.firstElementChild; if (el.classList.contains('spin')) { const i = document.createElement('i'); li.replaceChild(i, el); el = i; }
+    el.className = 'bi ' + (state === 'done' ? 'bi-check-circle-fill' : state === 'error' ? 'bi-x-circle-fill' : 'bi-circle');
+  }
+  if (sub !== undefined) li.querySelector('small').textContent = sub;
+}
+function resetSteps() { STAGE_ORDER.forEach(s => setStep(s, '', '')); }
+function stage(s, sub) { curStage = s; STAGE_ORDER.forEach((x, i) => { const ci = STAGE_ORDER.indexOf(s); if (i < ci) { const li = document.querySelector(`#steps li[data-s="${x}"]`); if (!li.classList.contains('done')) setStep(x, 'done'); } }); setStep(s, 'active', sub); }
+function live(msg) { liveBase = msg; renderLive(); }
+function renderLive() {
+  const sec = Math.round((Date.now() - t0) / 1000);
+  $('pgTime').textContent = `ใช้เวลา ${sec} วินาที`;
+  let extra = '';
+  if (running && curStage === 'send' && sec >= 12) extra = `<br>⏳ ใช้เวลานานกว่าปกติเล็กน้อย — ถ้าเกิน ${FIRST_BYTE_MS / 1000} วินาทีระบบจะสลับไปใช้โมเดลสำรองให้อัตโนมัติ`;
+  $('live').innerHTML = esc(liveBase).replace(/\n/g, '<br>') + extra;
+}
+function startTimer() { t0 = Date.now(); clearInterval(tick); tick = setInterval(renderLive, 500); }
+function stopTimer() { clearInterval(tick); renderLive(); }
+
+class ReadErr extends Error {
+  constructor(kind, message, o = {}) { super(message); this.kind = kind; Object.assign(this, o); }
+}
+const HINTS = {
+  key: ['API Key ไม่ถูกต้อง / หมดอายุ / ไม่มีสิทธิ์', ['ตรวจสอบว่าวางคีย์ครบ ไม่มีช่องว่างหน้าหลัง', 'สร้างคีย์ใหม่ที่ aistudio.google.com/apikey แล้ววางอีกครั้ง']],
+  quota: ['ใช้งานเกินโควต้า (429)', ['รอประมาณ 1 นาทีแล้วลองใหม่', 'คีย์ฟรีมีจำกัดจำนวนครั้งต่อนาที/ต่อวัน — ลองใหม่พรุ่งนี้หรือเปลี่ยนคีย์']],
+  overload: ['เซิร์ฟเวอร์ Google ไม่ว่าง (500/503)', ['เป็นปัญหาฝั่ง Google ชั่วคราว — กด "ลองอีกครั้ง" อีกสักครู่']],
+  notfound: ['ไม่พบ/ไม่มีสิทธิ์ใช้โมเดลที่ตั้งไว้ (404/403)', ['โมเดลอาจถูกเปลี่ยนชื่อหรือปลดระวาง — แก้ชื่อโมเดลในลิสต์ MODELS ที่ต้นสคริปต์ของไฟล์ ocr-reader.html']],
+  timeout: ['AI ตอบช้าเกินกำหนด', ['ลองลดจำนวนรูป (เหลือเฉพาะรูปที่จำเป็น)', 'ตรวจสัญญาณอินเทอร์เน็ต แล้วกด "ลองอีกครั้ง"']],
+  network: ['เชื่อมต่อ Google ไม่ได้', ['ตรวจสัญญาณอินเทอร์เน็ต', 'ถ้าเปิด VPN / ตัวบล็อกโฆษณา ลองปิดแล้วลองใหม่']],
+  blocked: ['AI ปฏิเสธการอ่านรูปนี้', ['ลองใช้รูปอื่น หรือครอปให้เห็นเฉพาะข้อมูลคำสั่งซื้อ']],
+  empty: ['AI ไม่ได้ส่งข้อมูลกลับมา', ['กด "ลองอีกครั้ง" หรือลองใช้รูปที่ชัดขึ้น']],
+  parse: ['อ่านผลลัพธ์จาก AI ไม่ได้ (รูปแบบข้อมูลผิดพลาด)', ['กด "ลองอีกครั้ง" — ถ้ายังเป็นอีกให้ลดจำนวนรูป']],
+  image: ['เตรียมรูปไม่สำเร็จ', ['ใช้ไฟล์ JPG / PNG / WebP (HEIC ต้องแปลงก่อน)']],
+  input: ['ข้อมูลยังไม่ครบ', []],
+  http: ['เรียก AI ไม่สำเร็จ', ['ดูรายละเอียดทางเทคนิคด้านล่าง แล้วกด "ลองอีกครั้ง"']]
+};
+let lastAttempts = [];
+function showError(err, attempts) {
+  const [title, tips] = HINTS[err.kind] || HINTS.http;
+  const log = (attempts && attempts.length ? attempts : lastAttempts).concat([`ผลสุดท้าย: [${err.kind}] ${err.message}`]).join('\n');
+  const showRetry = !['input', 'key'].includes(err.kind);
+  $('msgArea').innerHTML = `<div class="err" role="alert"><b><i class="bi bi-exclamation-triangle-fill"></i> ${esc(title)}</b>
+    ${esc(err.message)}
+    ${tips.length ? '<ul>' + tips.map(t => `<li>${esc(t)}</li>`).join('') + '</ul>' : ''}
+    ${err.kind === 'input' ? '' : `<details><summary>รายละเอียดทางเทคนิค</summary><pre id="errLog">${esc(log)}</pre></details>`}
+    <div class="btns">${showRetry ? '<button type="button" class="btn" id="retryBtn"><i class="bi bi-arrow-repeat"></i> ลองอีกครั้ง</button>' : ''}${err.kind === 'input' ? '' : '<button type="button" class="btn ghost" id="copyErrBtn"><i class="bi bi-clipboard"></i> คัดลอก error</button>'}</div></div>`;
+  const r = $('retryBtn'); if (r) r.onclick = () => $('readBtn').click();
+  const c = $('copyErrBtn'); if (c) c.onclick = () => copyText(`[${title}] ${err.message}\n${log}`, c);
+}
+function showOk(html) { $('msgArea').innerHTML = `<div class="okbox"><i class="bi bi-check-circle-fill"></i> ${html}</div>`; }
+async function copyText(text, btn) {
+  try { await navigator.clipboard.writeText(text); }
+  catch (e) { const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); try { document.execCommand('copy'); } catch (x) {} t.remove(); }
+  if (btn) { const o = btn.innerHTML; btn.innerHTML = '<i class="bi bi-check2"></i> คัดลอกแล้ว'; setTimeout(() => btn.innerHTML = o, 1200); }
+}
+
+/* ==================== เรียก Gemini (แบบ streaming) ==================== */
+function thinkingFor(model) {
+  if (/2\.5/.test(model)) return { thinkingBudget: 0 };          // ปิดการคิดยาว → เร็วขึ้นมาก
+  if (/-latest|3\./.test(model)) return { thinkingLevel: 'minimal' };
+  return null;
+}
+function httpErr(status, text, model) {
+  let msg = text; try { const j = JSON.parse(text); msg = j.error?.message || text; } catch (e) {}
+  msg = String(msg || '').slice(0, 300);
+  const m = `[${model}] HTTP ${status}: ${msg}`;
+  if (status === 400 && /thinking/i.test(msg)) return new ReadErr('http', m, { thinkingRejected: true });
+  if (status === 401 || (status === 400 && /api key|API_KEY/i.test(msg))) return new ReadErr('key', m, { fatal: true });
+  if (status === 403 && /api key|API_KEY|has been suspended|leaked/i.test(msg)) return new ReadErr('key', m, { fatal: true });
+  if (status === 429) return new ReadErr('quota', m);
+  if (status === 500 || status === 502 || status === 503 || status === 504) return new ReadErr('overload', m, { retryable: true });
+  if (status === 404 || status === 403) return new ReadErr('notfound', m);
+  return new ReadErr('http', m);
+}
+
+async function streamOnce(model, parts, ctx, useThink) {
+  const ctrl = new AbortController(); ctx.ctrl = ctrl;
+  let timer, timedOut = false;
+  const arm = ms => { clearTimeout(timer); timer = setTimeout(() => { timedOut = true; ctrl.abort(); }, ms); };
+  const gc = { responseMimeType: 'application/json', responseSchema: RESPONSE_SCHEMA, temperature: 0 };
+  const th = useThink ? thinkingFor(model) : null; if (th) gc.thinkingConfig = th;
+  const wrap = e => {
+    if (e instanceof ReadErr) return e;
+    if (ctx.cancelled) return new ReadErr('cancel', 'ยกเลิกแล้ว', { cancelled: true });
+    if (timedOut) return new ReadErr('timeout', `[${model}] ไม่มีการตอบกลับภายในเวลาที่กำหนด`);
+    return new ReadErr('network', `[${model}] ${e.name}: ${e.message}`, { retryable: true });
+  };
+  arm(FIRST_BYTE_MS);
+  let res;
+  try {
+    res = await fetch(`${API_BASE}/models/${model}:streamGenerateContent?alt=sse`, {
+      method: 'POST', signal: ctrl.signal,
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': ctx.key },
+      body: JSON.stringify({ contents: [{ role: 'user', parts }], generationConfig: gc })
+    });
+  } catch (e) { clearTimeout(timer); throw wrap(e); }
+  if (!res.ok) { clearTimeout(timer); const t = await res.text().catch(() => ''); throw httpErr(res.status, t, model); }
+
+  ctx.onFirstByte();
+  let text = '', finish = '', blockReason = '', buf = '';
+  const handle = ev => {
+    const data = ev.split('\n').filter(l => l.startsWith('data:')).map(l => l.slice(5).trim()).join('');
+    if (!data || data === '[DONE]') return;
+    let o; try { o = JSON.parse(data); } catch (e) { return; }
+    if (o.error) throw httpErr(o.error.code || 500, JSON.stringify({ error: o.error }), model);
+    if (o.promptFeedback?.blockReason) blockReason = o.promptFeedback.blockReason;
+    const c = o.candidates?.[0]; if (!c) return;
+    if (c.finishReason) finish = c.finishReason;
+    (c.content?.parts || []).forEach(p => { if (!p.thought && p.text) text += p.text; });
+    ctx.onProgress(text);
+  };
+  try {
+    const reader = res.body.getReader(), dec = new TextDecoder();
+    for (;;) {
+      const { done, value } = await reader.read(); if (done) break;
+      arm(IDLE_MS);
+      buf = (buf + dec.decode(value, { stream: true })).replace(/\r\n/g, '\n');
+      let i; while ((i = buf.indexOf('\n\n')) >= 0) { handle(buf.slice(0, i)); buf = buf.slice(i + 2); }
+    }
+    buf += dec.decode(); if (buf.trim()) handle(buf.replace(/\r\n/g, '\n'));
+  } catch (e) { throw wrap(e); } finally { clearTimeout(timer); }
+
+  if (!text.trim()) {
+    if (blockReason || /SAFETY|BLOCK|PROHIBITED|RECITATION/.test(finish)) throw new ReadErr('blocked', `[${model}] ถูกบล็อก: ${blockReason || finish}`);
+    throw new ReadErr('empty', `[${model}] ไม่มีข้อความตอบกลับ (finishReason=${finish || 'ไม่ทราบ'})`);
+  }
+  try { return { data: JSON.parse(text), model }; }
+  catch (e) {
+    const why = finish === 'MAX_TOKENS' ? 'ผลลัพธ์ยาวเกินจนถูกตัด' : 'JSON ไม่สมบูรณ์';
+    throw new ReadErr('parse', `[${model}] ${why} (finishReason=${finish || '-'}) เริ่มต้น: ${text.slice(0, 120)}`);
+  }
+}
+
+async function readWithFallback(parts, ctx, log) {
+  let last = null;
+  const t00 = Date.now();
+  for (let mi = 0; mi < MODELS.length; mi++) {
+    if (mi > 0 && Date.now() - t00 > TOTAL_MS) throw new ReadErr('timeout', `ใช้เวลารวมเกิน ${TOTAL_MS / 1000} วินาทีแล้ว หยุดลองโมเดลถัดไป (ผลล่าสุด: ${last ? last.message : '-'})`);
+    const model = MODELS[mi];
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      let useThink = true;
+      for (let round = 0; round < 2; round++) {
+        ctx.model = model;
+        ctx.onTry(model, mi, attempt);
+        try { return await streamOnce(model, parts, ctx, useThink); }
+        catch (e) {
+          if (e.cancelled) throw e;
+          last = e; log.push(`${new Date().toLocaleTimeString('th-TH')} ${e.message}`);
+          if (e.thinkingRejected && useThink) { useThink = false; continue; } // โมเดลนี้ไม่รับ thinkingConfig → ลองใหม่แบบไม่ใส่
+          break;
+        }
+      }
+      if (last.fatal) throw last;
+      if (last.retryable && attempt === 1) {
+        live(`${last.kind === 'network' ? 'การเชื่อมต่อสะดุด' : 'เซิร์ฟเวอร์ไม่ว่าง'} — ลองใหม่อีกครั้งใน 2 วินาที (โมเดล ${model})`);
+        await sleep(2000); if (ctx.cancelled) throw new ReadErr('cancel', 'ยกเลิกแล้ว', { cancelled: true });
+        continue;
+      }
+      break;
+    }
+    if (last && last.kind === 'network') throw last; // เน็ตหลุด ลองโมเดลอื่นก็ไม่ช่วย
+    if (mi < MODELS.length - 1) live(`โมเดล ${model} ใช้ไม่ได้ (${HINTS[last.kind]?.[0] || last.kind}) — สลับไปโมเดลถัดไป…`);
+  }
+  throw last || new ReadErr('http', 'ไม่สามารถเรียกโมเดลใดได้เลย');
+}
+
+/* ==================== ปุ่ม "อ่านด้วย AI" ==================== */
+let running = null;
+$('cancelBtn').onclick = () => { if (running) { running.cancelled = true; try { running.ctrl && running.ctrl.abort(); } catch (e) {} } };
+
+$('readBtn').onclick = async () => {
+  if (running) return;
+  $('msgArea').innerHTML = '';
+  const key = keyEl.value.trim();
+  if (!key) return showError(new ReadErr('input', 'กรุณาใส่ Gemini API Key ก่อน'));
+  if (!imgs.length) return showError(new ReadErr('input', 'กรุณาเลือกรูปอย่างน้อย 1 รูป'));
+
+  const ctx = { key, cancelled: false, ctrl: null, model: '' };
+  running = ctx;
+  const btn = $('readBtn'); btn.disabled = true;
+  $('progress').classList.remove('hidden'); resetSteps(); startTimer();
+  $('pgTitle').textContent = 'กำลังอ่านรูปคำสั่งซื้อ'; $('bar').classList.remove('hidden'); $('cancelBtn').classList.remove('hidden');
+  const log = []; lastAttempts = log;
+
+  try {
+    /* 1) เตรียมรูป */
+    stage('prep', `${imgs.length} รูป`);
+    live(`กำลังเตรียมรูป ${imgs.length} รูป (ย่อขนาดให้ส่งเร็วขึ้น)…`);
+    await Promise.all(imgs.map(i => i.promise));
+    const okImgs = imgs.filter(i => i.state === 'ready'), bad = imgs.filter(i => i.state === 'bad');
+    if (!okImgs.length) throw new ReadErr('image', bad.map(b => `${b.file.name}: ${b.error}`).join('\n'));
+    const total = okImgs.reduce((a, i) => a + i.size, 0);
+    if (total > MAX_PAYLOAD) throw new ReadErr('image', `ขนาดรูปรวมใหญ่เกินไป (${kb(total)}) ลดจำนวนรูปลงแล้วลองใหม่`);
+    setStep('prep', 'done', `${okImgs.length} รูป · รวม ${kb(total)}` + (bad.length ? ` · ข้าม ${bad.length} รูปที่เปิดไม่ได้` : ''));
+    if (bad.length) log.push('ข้ามรูป: ' + bad.map(b => `${b.file.name} (${b.error})`).join('; '));
+
+    const parts = [{ text: PROMPT }];
+    okImgs.forEach(i => parts.push({ inline_data: { mime_type: i.mime, data: i.b64 } }));
+
+    /* 2-3) ส่งให้ AI + รับผลแบบ stream */
+    stage('send', 'กำลังส่งรูป');
+    ctx.onTry = (model, mi, attempt) => {
+      setStep('read', '', ''); setStep('check', '', '');
+      stage('send', `โมเดล ${model}${mi || attempt > 1 ? ` (ลองครั้งที่ ${mi + 1}/${MODELS.length})` : ''}`);
+      live(`ส่งรูป ${okImgs.length} รูป (${kb(total)}) ให้ AI แล้ว กำลังรอ AI ประมวลผล…\nโมเดล: ${model}`);
+    };
+    ctx.onFirstByte = () => { setStep('send', 'done'); stage('read', 'AI เริ่มตอบแล้ว'); live(`AI กำลังเขียนผลลัพธ์…\nโมเดล: ${ctx.model}`); };
+    ctx.onProgress = text => {
+      const n = (text.match(/"product_name"/g) || []).length;
+      setStep('read', 'active', `รับข้อมูลแล้ว ${text.length.toLocaleString()} ตัวอักษร`);
+      live(`AI กำลังเขียนผลลัพธ์… พบสินค้าแล้ว ${n} รายการ\nโมเดล: ${ctx.model}`);
+    };
+    const { data, model } = await readWithFallback(parts, ctx, log);
+
+    /* 4) ตรวจผล */
+    setStep('read', 'done'); stage('check', '');
+    live('กำลังตรวจความถูกต้องของข้อมูล…');
+    const items = Array.isArray(data.items) ? data.items.filter(x => x && (x.product_name || x.qty)) : [];
+    data.items = items;
+    if (!items.length) throw new ReadErr('empty', 'AI อ่านไม่พบรายการสินค้าในรูป — ลองใช้รูปที่เห็นรายการสินค้าชัดขึ้น');
+    setStep('check', 'done', `พบสินค้า ${items.length} รายการ`);
+    showReview(data);
+    stopTimer();
+    $('pgTitle').textContent = 'อ่านเสร็จแล้ว'; $('bar').classList.add('hidden'); $('cancelBtn').classList.add('hidden');
+    live(`✅ เสร็จใน ${Math.round((Date.now() - t0) / 1000)} วินาที (โมเดล ${model}) — ตรวจสอบข้อมูลด้านล่างก่อนส่งกลับ`);
+    showOk('อ่านเสร็จแล้ว กรุณาตรวจสอบข้อมูลด้านล่าง โดยเฉพาะ <b>จำนวน ราคา และยอดสุทธิ</b>');
+  } catch (e) {
+    stopTimer();
+    if (e.cancelled) {
+      $('pgTitle').textContent = 'ยกเลิกแล้ว'; STAGE_ORDER.forEach(s => { const li = document.querySelector(`#steps li[data-s="${s}"]`); if (li.classList.contains('active')) setStep(s, '', 'ยกเลิก'); });
+      $('bar').classList.add('hidden'); $('cancelBtn').classList.add('hidden'); live('ยกเลิกการอ่านแล้ว');
+    } else {
+      const err = e instanceof ReadErr ? e : new ReadErr('http', `${e.name}: ${e.message}`);
+      STAGE_ORDER.forEach(s => { const li = document.querySelector(`#steps li[data-s="${s}"]`); if (li.classList.contains('active')) setStep(s, 'error', 'เกิดข้อผิดพลาด'); });
+      $('pgTitle').textContent = 'อ่านไม่สำเร็จ'; $('bar').classList.add('hidden'); $('cancelBtn').classList.add('hidden');
+      live(`❌ หยุดที่ขั้นตอน "${{ prep: 'เตรียมรูป', send: 'ส่งรูป/รอ AI', read: 'AI เขียนผลลัพธ์', check: 'ตรวจผลลัพธ์' }[curStage] || '-'}" หลังใช้เวลา ${Math.round((Date.now() - t0) / 1000)} วินาที`);
+      showError(err, log);
+    }
+  } finally { running = null; btn.disabled = false; }
+};
+
+/* ==================== ฟอร์มตรวจสอบ (ฟิลด์เหมือนฟอร์ม "ซื้อสินค้า") ==================== */
+// หมวดสินค้าหลักเว้นว่างไว้ให้เลือกเอง (AI เดาหมวดผิดง่าย และอาจสร้างหมวดซ้ำซ้อนในระบบ) — ถ้าชื่อกลุ่มตรงกับในระบบจะเติมให้
+let itemSeq = 0;
+function itemHtml(n, it) {
+  const q = it.qty ?? '', up = it.unit_price ?? '';
+  return `<div class="it" data-n="${n}">
+    <button type="button" class="rmi">✕ ลบ</button><div class="ttl">สินค้าที่ <span class="no"></span></div>
+    <label>หมวดสินค้าหลัก<input class="inp" data-k="cat" list="dlCat" placeholder="เช่น เครื่องดื่ม (พิมพ์เพื่อเลือก)" autocomplete="off"></label>
+    <label>กลุ่มสินค้า</label>
+    <div class="flex"><input class="inp" data-k="grp" list="dlGrp" value="${esc(it.product_name)}" autocomplete="off" style="margin-top:.25rem"><button type="button" class="mini cp" data-t="grp" aria-label="คัดลอก">📋</button><button type="button" class="mini cl" data-t="grp" aria-label="ล้าง">✕</button></div>
+    <div class="match" data-k="match"></div>
+    <label>ลิงก์สินค้า (ไม่บังคับ)</label>
+    <div class="flex"><input class="inp" data-k="url" type="url" value="${esc(it.product_url)}" placeholder="Shopee, Lazada" style="margin-top:.25rem"><button type="button" class="mini cp" data-t="url" aria-label="คัดลอก">📋</button></div>
+    <div class="row"><label>จำนวนซื้อ<input class="inp" data-k="qty" type="number" min="0" inputmode="decimal" value="${esc(q)}"></label><label>หน่วยซื้อ<input class="inp" data-k="ub" list="dlUnit" placeholder="ลัง"></label></div>
+    <div class="row"><label>เรโช (1 หน่วยซื้อ = กี่หน่วยขาย)<input class="inp" data-k="ratio" type="number" min="0" inputmode="decimal" value="1"></label><label>หน่วยขาย<input class="inp" data-k="us" placeholder="ชิ้น"></label></div>
+    <label>ราคาต่อหน่วยซื้อ (ไม่บังคับ คำนวณราคารวมให้)<input class="inp" data-k="up" type="number" min="0" inputmode="decimal" value="${esc(up)}"></label>
+    <label>ราคารวมของรายการนี้ (บาท)<input class="inp" data-k="price" type="number" min="0" inputmode="decimal" value="${esc(totalOf(it))}"></label>
+  </div>`;
+}
+function totalOf(it) { const q = num(it.qty), u = num(it.unit_price); return (u > 0 && q > 0) ? Math.round(u * q * 100) / 100 : (it.total_price ?? ''); }
+const f = (row, k) => row.querySelector(`[data-k="${k}"]`);
+function renumber() { [...$('items').children].forEach((r, i) => r.querySelector('.no').textContent = i + 1); }
+function addItem(it) {
+  const d = document.createElement('div'); d.innerHTML = itemHtml(++itemSeq, it || {});
+  const row = d.firstElementChild; $('items').appendChild(row); renumber();
+  row.querySelector('.rmi').onclick = () => { if ($('items').children.length <= 1) return; row.remove(); renumber(); calcSum(); };
+  row.querySelectorAll('.cp').forEach(b => b.onclick = () => copyText(f(row, b.dataset.t).value, b));
+  row.querySelectorAll('.cl').forEach(b => b.onclick = () => { const i = f(row, b.dataset.t); i.value = ''; i.focus(); checkMatch(row); });
+  checkMatch(row);
+}
+function checkMatch(row) {
+  const note = f(row, 'match'), typed = norm(f(row, 'grp').value);
+  if (!typed) { note.textContent = ''; return; }
+  const m = masterData.productGroups.find(p => norm(p.name) === typed);
+  if (!m) { note.textContent = ''; return; }
+  const setIf = (k, v) => { const i = f(row, k); if (v !== '' && v != null && !i.value.trim()) i.value = v; };
+  if (m.has_history) { setIf('ub', m.unit_buy); setIf('us', m.unit_sell); if (!f(row, 'ratio').value || f(row, 'ratio').value === '1') f(row, 'ratio').value = m.ratio || 1; note.textContent = '✓ พบสินค้านี้ในระบบแล้ว — เติมหน่วย/เรโชให้อัตโนมัติ'; note.style.color = 'var(--ok)'; }
+  else { note.textContent = '✓ พบชื่อนี้ในระบบ (ยังไม่มีประวัติซื้อ)'; note.style.color = 'var(--soft)'; }
+  if (!f(row, 'cat').value.trim() && m.category_id) { const c = masterData.categories.find(c => c.id === m.category_id); if (c) f(row, 'cat').value = c.name; }
+}
+function addDisc(name, amount) {
+  const d = document.createElement('div'); d.className = 'dc';
+  d.innerHTML = `<input class="inp" data-k="dn" placeholder="ชื่อส่วนลด" value="${esc(name)}"><input class="inp" data-k="da" type="number" min="0" inputmode="decimal" placeholder="บาท" value="${esc(amount)}" style="width:8rem"><button type="button" class="rmd" aria-label="ลบส่วนลด">✕</button>`;
+  d.querySelector('.rmd').onclick = () => { d.remove(); calcSum(); };
+  $('discs').appendChild(d);
+}
+function getDiscs() { return [...$('discs').children].map(d => ({ name: f(d, 'dn').value.trim(), amount: num(f(d, 'da').value) })).filter(x => x.amount > 0); }
+function calcSum() {
+  const sub = [...$('items').children].reduce((a, r) => a + num(f(r, 'price').value), 0);
+  const net = sub + num($('rShip').value) + num($('rOther').value) - getDiscs().reduce((a, d) => a + d.amount, 0);
+  $('sumNet').textContent = fm(net);
+  $('sumHint').textContent = `สินค้ารวม ${fm(sub)} + ส่ง ${fm($('rShip').value)} + อื่นๆ ${fm($('rOther').value)} − ส่วนลด ${fm(getDiscs().reduce((a, d) => a + d.amount, 0))} · ถ้าไม่ตรงกับยอดชำระในรูป ให้แก้ตัวเลขด้านบน`;
+}
+$('review').addEventListener('input', e => {
+  const row = e.target.closest('.it'), k = e.target.dataset.k;
+  if (row && (k === 'up' || k === 'qty')) { const u = num(f(row, 'up').value), q = num(f(row, 'qty').value); if (u > 0 && q > 0) f(row, 'price').value = Math.round(u * q * 100) / 100; }
+  if (row && k === 'grp') checkMatch(row);
+  calcSum();
+});
+$('addItemBtn').onclick = () => { addItem({}); calcSum(); };
+$('addDiscBtn').onclick = () => addDisc('', '');
+const dlUnit = document.createElement('datalist'); dlUnit.id = 'dlUnit'; dlUnit.innerHTML = ['ลัง', 'แพ็ค', 'กล่อง', 'ชิ้น', 'ขวด', 'ถุง', 'ห่อ', 'โหล'].map(u => `<option value="${u}">`).join(''); document.body.appendChild(dlUnit);
+
+function showReview(p) {
+  $('rStore').value = p.store_name || '';
+  $('rDate').value = /^\d{4}-\d{2}-\d{2}$/.test(p.order_date || '') ? p.order_date : '';
+  $('rOrderNo').value = p.order_no || '';
+  $('rShip').value = p.shipping || 0; $('rOther').value = p.other_cost || 0;
+  $('discs').innerHTML = ''; (p.discounts || []).forEach(d => { if (d && num(d.amount) > 0) addDisc(d.name, d.amount); });
+  $('items').innerHTML = ''; itemSeq = 0; (p.items || []).forEach(addItem); if (!(p.items || []).length) addItem({});
+  calcSum();
+  $('review').classList.remove('hidden'); $('copyJsonBtn').classList.toggle('hidden', hasOpener);
+  $('review').scrollIntoView({ behavior: 'smooth' });
+}
+
+/* ==================== ยืนยัน ส่งกลับ ==================== */
+function collect() {
+  const items = [...$('items').children].map(r => ({
+    category_name: f(r, 'cat').value.trim(), product_name: f(r, 'grp').value.trim(), product_url: f(r, 'url').value.trim(),
+    qty: num(f(r, 'qty').value), unit_buy: f(r, 'ub').value.trim(), ratio: num(f(r, 'ratio').value), unit_sell: f(r, 'us').value.trim(),
+    unit_price: num(f(r, 'up').value), total_price: num(f(r, 'price').value)
+  })).filter(x => x.product_name);
+  return {
+    store_name: $('rStore').value.trim(), order_date: $('rDate').value, order_no: $('rOrderNo').value.trim(),
+    shipping: num($('rShip').value), other_cost: num($('rOther').value), discounts: getDiscs(), items
+  };
+}
+$('confirmBtn').onclick = () => {
+  const data = collect();
+  if (!data.items.length) return showError(new ReadErr('input', 'ต้องมีอย่างน้อย 1 รายการสินค้าที่มีชื่อ'));
+  if (window.opener && !window.opener.closed) {
+    window.opener.postMessage({ type: 'OCR_RESULT', session: SESSION, data }, '*');
+    showOk('ส่งข้อมูลกลับไปที่ฟอร์มแล้ว กำลังปิดหน้านี้…');
+    setTimeout(() => window.close(), 700);
+  } else {
+    showError(new ReadErr('input', 'ไม่พบหน้าต้นทาง (หน้าฟอร์มอาจถูกปิดหรือรีเฟรชไปแล้ว) กรุณาเปิดหน้านี้จากปุ่ม "อัปโหลดรูปคำสั่งซื้อ" ในฟอร์มซื้อสินค้าอีกครั้ง หรือกด "คัดลอกผลลัพธ์ (JSON)" เก็บไว้'));
+    $('copyJsonBtn').classList.remove('hidden');
+  }
+};
+$('copyJsonBtn').onclick = e => copyText(JSON.stringify(collect(), null, 2), e.currentTarget);
+</script>
+</body></html>
