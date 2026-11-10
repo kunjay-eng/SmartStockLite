@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>สแกนบาร์โค้ด</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:Prompt,Tahoma,Arial,sans-serif;color:#fff}
+video{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
+#overlay{position:fixed;inset:0;display:flex;justify-content:center;align-items:center;pointer-events:none}
+#frame{width:min(88vw,420px);height:min(46vw,210px);position:relative;border-radius:16px;box-shadow:0 0 0 9999px rgba(0,0,0,.55)}
+.c{position:absolute;width:34px;height:34px;border:5px solid #2563EB}
+.tl{top:0;left:0;border-right:none;border-bottom:none;border-radius:14px 0 0 0}.tr{top:0;right:0;border-left:none;border-bottom:none;border-radius:0 14px 0 0}
+.bl{bottom:0;left:0;border-right:none;border-top:none;border-radius:0 0 0 14px}.br{bottom:0;right:0;border-left:none;border-top:none;border-radius:0 0 14px 0}
+#line{position:absolute;left:10px;right:10px;height:3px;background:#00ff80;border-radius:10px;animation:sc 1.8s linear infinite}
+@keyframes sc{0%,100%{top:10px}50%{top:calc(100% - 13px)}}
+#msg{position:fixed;top:max(28px,env(safe-area-inset-top));width:100%;padding:0 16px;text-align:center;font-size:17px;font-weight:600;text-shadow:0 2px 6px #000}
+#last{position:fixed;left:50%;transform:translateX(-50%);bottom:150px;max-width:90vw;background:#047857;padding:8px 16px;border-radius:999px;font-size:15px;display:none;word-break:break-all;text-align:center}
+#tool{position:fixed;bottom:max(28px,env(safe-area-inset-bottom));width:100%;display:flex;justify-content:center;gap:14px}
+#tool button{min-width:56px;height:56px;border:none;border-radius:28px;background:rgba(255,255,255,.92);font-size:22px;cursor:pointer;padding:0 14px}
+#tool button.done{background:#2563EB;color:#fff;font-size:16px;font-weight:600;display:none}
+#man{position:fixed;left:12px;right:12px;bottom:100px;display:none;gap:8px}
+#man input{flex:1;height:46px;border-radius:12px;border:none;padding:0 12px;font-size:16px;font-family:monospace}
+#man button{height:46px;padding:0 18px;border:none;border-radius:12px;background:#2563EB;color:#fff;font-size:16px}
+#load{position:fixed;inset:0;background:#000;display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:10}
+.sp{width:48px;height:48px;border-radius:50%;border:5px solid rgba(255,255,255,.25);border-top-color:#2563EB;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div id="load"><div class="sp"></div><div style="margin-top:18px">กำลังเปิดกล้อง...</div></div>
+<video id="v" playsinline autoplay muted></video>
+<div id="overlay"><div id="frame"><div class="c tl"></div><div class="c tr"></div><div class="c bl"></div><div class="c br"></div><div id="line"></div></div></div>
+<div id="msg">เล็งบาร์โค้ดให้อยู่ในกรอบ</div>
+<div id="last"></div>
+<div id="man"><input id="mi" placeholder="พิมพ์รหัสบาร์โค้ด" autocomplete="off"><button id="mok">ตกลง</button></div>
+<div id="tool">
+ <button id="bf" aria-label="ไฟฉาย">&#128294;</button>
+ <button id="bs" aria-label="สลับกล้อง">&#128260;</button>
+ <button id="bi" aria-label="เลือกรูป">&#128444;&#65039;</button>
+ <button id="bk" aria-label="พิมพ์รหัส">&#9000;&#65039;</button>
+ <button id="bx" aria-label="ปิด">&#10005;</button>
+ <button id="bd" class="done">เสร็จสิ้น</button>
+</div>
+<input type="file" id="file" accept="image/*" hidden>
+<canvas id="cv" hidden></canvas>
+<script>
+const P=new URLSearchParams(location.search),SESSION=P.get('session')||'',MULTI=P.get('multi')==='1';
+const $=id=>document.getElementById(id),video=$('v'),cv=$('cv'),cx=cv.getContext('2d',{willReadFrequently:true});
+const FMT=['ean_13','ean_8','upc_a','upc_e','code_128','code_39'];
+let stream=null,facing='environment',det=null,zx=null,zxOk=false,timer=0,busy=false,torch=false,stopped=false,count=0,lastCode='',lastAt=0;
+
+async function initDet(){
+  if('BarcodeDetector' in window){
+    try{
+      const sup=await BarcodeDetector.getSupportedFormats(),f=FMT.filter(x=>sup.indexOf(x)>=0);
+      if(f.length){det=new BarcodeDetector({formats:f});return}
+    }catch(e){}
+  }
+  await new Promise(res=>{
+    const s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js';
+    s.onload=()=>{zxOk=!!window.ZXing;res()};s.onerror=()=>res();document.head.appendChild(s);
+  });
+}
+function zxDecode(c){
+  const Z=window.ZXing;
+  if(!zx){
+    const h=new Map();
+    h.set(Z.DecodeHintType.POSSIBLE_FORMATS,[Z.BarcodeFormat.EAN_13,Z.BarcodeFormat.EAN_8,Z.BarcodeFormat.UPC_A,Z.BarcodeFormat.UPC_E,Z.BarcodeFormat.CODE_128,Z.BarcodeFormat.CODE_39]);
+    h.set(Z.DecodeHintType.TRY_HARDER,true);
+    zx=new Z.MultiFormatReader();zx.setHints(h);
+  }
+  try{return zx.decode(new Z.BinaryBitmap(new Z.HybridBinarizer(new Z.HTMLCanvasElementLuminanceSource(c)))).getText()}catch(e){return null}
+}
+async function decodeSource(src,w,h){
+  if(det){const r=await det.detect(src);return r&&r.length?r[0].rawValue:null}
+  if(zxOk){cv.width=w;cv.height=h;cx.drawImage(src,0,0,w,h);return zxDecode(cv)}
+  return null
+}
+async function start(){
+  stop();
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:facing},width:{ideal:1280},height:{ideal:720}},audio:false});
+  }catch(e){
+    $('load').style.display='none';
+    $('msg').textContent='เปิดกล้องไม่สำเร็จ ('+e.name+') ใช้ปุ่มเลือกรูปหรือพิมพ์รหัสแทน';
+    $('man').style.display='flex';return
+  }
+  video.srcObject=stream;await video.play().catch(()=>{});
+  $('load').style.display='none';
+  if(!det&&!zxOk)$('msg').textContent='เครื่องนี้ยังอ่านบาร์โค้ดสดไม่ได้ ใช้ปุ่มเลือกรูปหรือพิมพ์รหัสแทน';
+  timer=setInterval(tick,150);
+}
+function stop(){clearInterval(timer);if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}}
+async function tick(){
+  if(busy||stopped||!video.videoWidth||(!det&&!zxOk))return;
+  busy=true;
+  try{const t=await decodeSource(video,video.videoWidth,video.videoHeight);if(t)got(t)}catch(e){}
+  busy=false
+}
+function got(t){
+  t=String(t||'').trim();if(!t||stopped)return;
+  const now=Date.now();
+  if(t===lastCode&&now-lastAt<2500){lastAt=now;return}
+  lastCode=t;lastAt=now;
+  if(navigator.vibrate)navigator.vibrate(80);
+  send(t);
+  count++;
+  const L=$('last');L.style.display='block';L.textContent='✓ '+t+(MULTI?'  ('+count+')':'');
+  if(!MULTI){stopped=true;stop();setTimeout(()=>window.close(),250)}
+}
+function send(t){
+  if(window.opener&&!window.opener.closed){window.opener.postMessage({type:'SCAN_RESULT',session:SESSION,text:t,multi:MULTI},'*')}
+  else{$('msg').textContent='ไม่พบหน้าแอปต้นทาง (เปิดหน้านี้จากปุ่มสแกนในแอปเท่านั้น)'}
+}
+$('bx').onclick=()=>{stopped=true;stop();window.close()};
+$('bd').onclick=$('bx').onclick;
+if(MULTI){$('bd').style.display='block';$('bx').style.display='none';$('msg').textContent='สแกนต่อเนื่อง ส่องทีละชิ้น กด เสร็จสิ้น เมื่อครบ'}
+$('bs').onclick=()=>{facing=facing==='environment'?'user':'environment';stopped=false;start()};
+$('bf').onclick=async()=>{
+  const tr=stream&&stream.getVideoTracks()[0];if(!tr)return;
+  const cap=tr.getCapabilities?tr.getCapabilities():{};
+  if(!cap.torch)return alert('เครื่องนี้ไม่รองรับไฟฉาย');
+  torch=!torch;try{await tr.applyConstraints({advanced:[{torch:torch}]});$('bf').style.opacity=torch?'1':'.6'}catch(e){}
+};
+$('bk').onclick=()=>{const m=$('man');m.style.display=m.style.display==='flex'?'none':'flex';if(m.style.display==='flex')$('mi').focus()};
+function man(){const t=$('mi').value.trim();if(t){got(t);$('mi').value=''}}
+$('mok').onclick=man;$('mi').onkeydown=e=>{if(e.key==='Enter')man()};
+$('bi').onclick=()=>$('file').click();
+$('file').onchange=async e=>{
+  const f=e.target.files[0];e.target.value='';if(!f)return;
+  if(!det&&!zxOk)return $('msg').textContent='เครื่องนี้ยังอ่านรูปบาร์โค้ดไม่ได้ ใช้การพิมพ์รหัสแทน';
+  $('msg').textContent='กำลังอ่านรูป...';
+  try{
+    const b=await createImageBitmap(f),t=await decodeSource(b,b.width,b.height);
+    if(t)got(t);else $('msg').textContent='อ่านบาร์โค้ดจากรูปไม่ได้ ลองถ่ายให้ชัดและเห็นทั้งแถบ'
+  }catch(err){$('msg').textContent='อ่านรูปไม่ได้ ลองใหม่'}
+};
+document.addEventListener('visibilitychange',()=>{if(document.hidden)stop();else if(!stopped)start()});
+window.onbeforeunload=stop;
+window.onload=async()=>{await initDet();await start()};
+</script>
+</body>
+</html>
