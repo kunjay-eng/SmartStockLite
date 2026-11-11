@@ -33,6 +33,8 @@ label:first-child{margin-top:0}
 .hint a{color:var(--blue)}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
 .flex{display:flex;gap:.5rem;align-items:center}
+.at{display:flex;gap:.4rem;align-items:center;margin-top:.35rem}.at .inp{margin-top:0;min-width:0}.at .an{flex:0 0 38%}.at .av{flex:1}
+.atn{font-size:.72rem;color:var(--soft);line-height:1.5;margin-top:.25rem}
 .hidden{display:none!important}
 .notice{border-radius:8px;padding:.6rem .8rem;font-size:.8rem;line-height:1.5;margin-bottom:1rem;background:var(--warn-bg);color:var(--warn)}
 
@@ -161,10 +163,11 @@ label:first-child{margin-top:0}
   </div>
 </main>
 
-<datalist id="dlCat"></datalist><datalist id="dlGrp"></datalist>
+<datalist id="dlCat"></datalist><datalist id="dlGrp"></datalist><datalist id="dlAttr"></datalist>
 
 <script>
 'use strict';
+/* SmartStock Lite - หน้าอ่านรูปคำสั่งซื้อ (v1.41: รองรับตัวเลือกตามชนิด attrs / ชนิดที่ตั้งชื่อเองได้) */
 /* ==================== ตั้งค่า ==================== */
 const API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 // ลองไล่ทีละโมเดลตามลำดับ (ถ้ามีรุ่นใหม่กว่านี้ แก้/เพิ่มชื่อในลิสต์นี้ได้เลย)
@@ -187,7 +190,7 @@ const kb = n => n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Ma
 
 /* ==================== เชื่อมกับหน้าฟอร์ม (opener) ==================== */
 const SESSION = new URLSearchParams(location.search).get('session');
-let masterData = { categories: [], productGroups: [] };
+let masterData = { categories: [], productGroups: [], variant_attrs: [] };
 const hasOpener = !!(window.opener && !window.opener.closed);
 if (hasOpener) { try { window.opener.postMessage({ type: 'OCR_READY', session: SESSION }, '*'); } catch (e) {} }
 else $('noOpener').classList.remove('hidden');
@@ -197,12 +200,14 @@ window.addEventListener('message', ev => {
   if (!d || d.type !== 'INIT_DATA' || d.session !== SESSION) return;
   if (ev.source !== window.opener) return; // รับเฉพาะจากหน้าที่เปิดเรา
   masterData = d.payload || { categories: [], productGroups: [] };
+  masterData.variant_attrs = masterData.variant_attrs || [];
   fillDatalists();
-  document.querySelectorAll('.it').forEach(r => checkMatch(r));
+  document.querySelectorAll('.it').forEach(r => { checkMatch(r); attrNote(r); });
 });
 function fillDatalists() {
   $('dlCat').innerHTML = masterData.categories.map(c => `<option value="${esc(c.name)}">`).join('');
   $('dlGrp').innerHTML = masterData.productGroups.map(g => `<option value="${esc(g.name)}">`).join('');
+  $('dlAttr').innerHTML = attrDefs().map(d => `<option value="${esc(d.name)}">`).join('');
 }
 $('closeBtn').onclick = () => { window.close(); setTimeout(() => { if (history.length > 1) history.back(); }, 300); };
 
@@ -258,6 +263,57 @@ async function prepareImage(file) {
   return { b64: await blobToB64(blob), mime: 'image/jpeg', size: blob.size };
 }
 
+/* ==================== ชนิดตัวเลือก (attrs) ==================== */
+// ชนิดทั้งระบบมาจาก INIT_DATA (variant_attrs) ถ้ายังไม่ได้รับ (เปิดหน้านี้ตรงๆ) ใช้ชนิดตั้งต้น สี / ไซซ์ / รุ่น
+const DEFAULT_ATTRS = ['สี', 'ไซซ์', 'รุ่น'];
+const attrDefs = () => (masterData.variant_attrs || []).filter(d => d && d.name);
+function attrNames() { const n = attrDefs().map(d => d.name); return n.length ? n : DEFAULT_ATTRS; }
+function findDef(n) { const t = String(n ?? '').trim(), k = norm(t); return k ? attrDefs().find(d => d.id === t || norm(d.name) === k) || null : null; }
+// แปลงผลจาก AI (array [{name,value}] หรือ object {ชื่อ: ค่า}) เป็น [{name,value}] ใช้ชื่อชนิดตามระบบ ตัดค่าว่างและชื่อซ้ำ
+function normAttrs(src) {
+  let arr = [];
+  if (Array.isArray(src)) arr = src; else if (src && typeof src === 'object') arr = Object.keys(src).map(k => ({ name: k, value: src[k] }));
+  const seen = {}, out = [];
+  arr.forEach(a => {
+    if (!a) return;
+    const n = String(a.name ?? a.id ?? '').trim(), v = String(a.value ?? '').trim();
+    if (!n || !v) return;
+    const d = findDef(n), name = d ? d.name : n, k = norm(name);
+    if (seen[k]) return; seen[k] = 1; out.push({ name, value: v });
+  });
+  return out;
+}
+function groupOf(row) { const t = norm(f(row, 'grp').value); return t ? masterData.productGroups.find(p => norm(p.name) === t) || null : null; }
+function attrRows(row) { return [...row.querySelectorAll('.at')].map(d => ({ el: d, n: d.querySelector('[data-k="an"]'), v: d.querySelector('[data-k="av"]') })); }
+function addAttr(row, name, value) {
+  const box = f(row, 'ats');
+  if (name == null) {                    // กดปุ่ม "+ ตัวเลือก": ถ้ากลุ่มตรงกับในระบบ เสนอชนิดของกลุ่มที่ยังไม่ได้ใช้ให้ก่อน
+    const g = groupOf(row), used = attrRows(row).map(r => norm(r.n.value));
+    const nx = g && Array.isArray(g.attrs) ? g.attrs.find(a => used.indexOf(norm(a.name)) < 0) : null;
+    name = nx ? nx.name : '';
+  }
+  const d = document.createElement('div'); d.className = 'at';
+  d.innerHTML = `<input class="inp an" data-k="an" list="dlAttr" placeholder="ชนิด เช่น ${esc(attrNames()[0])}" autocomplete="off" value="${esc(name)}"><input class="inp av" data-k="av" placeholder="ค่า" autocomplete="off" value="${esc(value ?? '')}"><button type="button" class="mini rma" aria-label="ลบตัวเลือก" style="margin-top:0">✕</button>`;
+  d.querySelector('.rma').onclick = () => { d.remove(); attrNote(row); };
+  box.appendChild(d);
+  attrNote(row);
+  return d;
+}
+// ข้อความใต้ช่องตัวเลือก: บอกชนิดที่กลุ่มนี้ใช้ และเตือนถ้าชนิดที่อ่านได้ไม่อยู่ในระบบ/ไม่ตรงกับกลุ่ม (ฝั่งฟอร์มซื้อสินค้าจะไม่เติมค่านี้ให้)
+function attrNote(row) {
+  const el = f(row, 'atn'); if (!el) return;
+  const g = groupOf(row), gl = g && Array.isArray(g.attrs) ? g.attrs : [], warn = [];
+  attrRows(row).forEach(r => {
+    const n = r.n.value.trim(); if (!n || !r.v.value.trim()) return;
+    const d = findDef(n);
+    if (attrDefs().length && !d) warn.push(`ไม่มีชนิด "${n}" ในระบบ`);
+    else if (g && gl.length && d && !gl.some(a => a.id === d.id)) warn.push(`กลุ่มนี้ไม่ได้ใช้ชนิด "${d.name}"`);
+  });
+  let html = g && gl.length ? `กลุ่มนี้ใช้ชนิด: ${esc(gl.map(a => a.name).join(' / '))}` : '';
+  if (warn.length) html += `<div style="color:var(--warn)">⚠ ${esc(warn.join(' · '))} — ระบบจะไม่เติมค่านี้ในฟอร์มให้ (ตั้งชนิดได้ที่ หน้าสินค้า > ตัวเลือกสินค้า > ตั้งค่า)</div>`;
+  el.innerHTML = html;
+}
+
 /* ==================== Schema + Prompt ==================== */
 const RESPONSE_SCHEMA = {
   type: 'OBJECT',
@@ -281,7 +337,12 @@ const RESPONSE_SCHEMA = {
           product_url: { type: 'STRING', description: 'ลิงก์สินค้า ถ้ามีแสดงในภาพ ปกติจะไม่มี เว้นว่างได้' },
           qty: { type: 'NUMBER' },
           unit_price: { type: 'NUMBER', description: 'ราคาต่อชิ้นของสินค้ารายการนี้ (บาท) — ในสกรีนช็อต Shopee/Lazada ตัวเลขราคาที่แสดงต่อท้ายแต่ละรายการสินค้า (เช่น ฿54) มักเป็นราคาต่อชิ้นเสมอ ไม่ใช่ราคารวมของบรรทัด ให้ใส่ตัวเลขนั้นตรงนี้' },
-          total_price: { type: 'NUMBER', description: 'ราคารวมของรายการนี้ = unit_price คูณ qty ให้คำนวณเอง (เว้นแต่ภาพนั้นแสดงราคารวมแยกไว้ชัดเจนต่างหากจากราคาต่อชิ้น ก็ให้อ่านตามที่เห็นแทน)' }
+          total_price: { type: 'NUMBER', description: 'ราคารวมของรายการนี้ = unit_price คูณ qty ให้คำนวณเอง (เว้นแต่ภาพนั้นแสดงราคารวมแยกไว้ชัดเจนต่างหากจากราคาต่อชิ้น ก็ให้อ่านตามที่เห็นแทน)' },
+          attrs: {
+            type: 'ARRAY',
+            description: 'ตัวเลือกของสินค้ารายการนี้ แยกเป็นคู่ ชนิด/ค่า เช่น [{name:"สี",value:"แดง"},{name:"ไซซ์",value:"XL"}] ถ้าสินค้าไม่มีตัวเลือกให้เป็น array ว่าง',
+            items: { type: 'OBJECT', properties: { name: { type: 'STRING', description: 'ชื่อชนิดตัวเลือก (เลือกจากรายการชนิดของระบบ)' }, value: { type: 'STRING', description: 'ค่าตามที่เห็นในภาพ' } }, required: ['name', 'value'] }
+          }
         },
         required: ['product_name', 'qty', 'unit_price', 'total_price']
       }
@@ -309,6 +370,21 @@ const PROMPT = `คุณกำลังดูภาพหน้าจอ "ร�
 - ถ้ารายการสินค้าไหนมีข้อความกำกับว่า "คืนเงินแล้ว" หรือถูกยกเลิก ให้ตัดรายการนั้นออกทั้งหมด ห้ามใส่ในผลลัพธ์ items เด็ดขาด (ไม่ต้องนำราคาหรือจำนวนของรายการนั้นมารวมในการคำนวณอะไรทั้งสิ้น)
 - ห้ามเดาข้อมูลที่ไม่ปรากฏในภาพเด็ดขาด เว้นว่างไว้ดีกว่าเดา
 ตอบกลับเป็น JSON เท่านั้น`;
+
+// คำสั่งส่วนตัวเลือก (attrs) สร้างตอนกดอ่าน เพื่อใช้รายการชนิดและชนิดของแต่ละกลุ่มล่าสุดจากระบบ
+function buildPrompt() {
+  const names = attrNames();
+  const gl = (masterData.productGroups || []).filter(g => Array.isArray(g.attrs) && g.attrs.length);
+  let gtxt = '', n = 0;
+  for (const g of gl) { const line = `\n    - ${g.name}: ${g.attrs.map(a => a.name).join(', ')}`; if (n >= 150 || gtxt.length + line.length > 6000) break; gtxt += line; n++; }
+  const extra = `
+- attrs: ตัวเลือกของสินค้าแต่ละรายการ (ข้อความกำกับใต้ชื่อสินค้า เช่น "ตัวเลือก: แดง, XL", "ความยาว: 5 ม.") ให้แยกเป็นคู่ {name, value} หนึ่งคู่ต่อหนึ่งชนิด
+  - ชนิดตัวเลือกที่ระบบนี้มี: ${names.join(', ')}
+  - name: ใช้ชื่อชนิดข้างต้นให้ตรงตัวอักษร ถ้าแอปแสดงป้ายชนิดมาให้ (เช่น "สี:") ให้เลือกชนิดที่ความหมายตรงกัน ถ้าไม่มีป้ายชนิดให้ดูว่าค่านั้นเป็นชนิดไหน (เช่น "XL" คือ ไซซ์, "แดง" คือ สี) ถ้าไม่แน่ใจจริงๆ หรือไม่มีชนิดที่ตรง ให้ใช้ชื่อชนิดตามที่แอปแสดง ห้ามเดา
+  - value: ค่าตามที่เห็น เช่น "แดง", "XL", "5 ม." ไม่ต้องใส่ชื่อชนิดซ้ำในค่า
+  - ถ้าสินค้ารายการนั้นไม่มีตัวเลือก ให้ attrs เป็น array ว่าง ห้ามเดาค่าที่ไม่ปรากฏในภาพ${gtxt ? `\n  - ชนิดตัวเลือกที่แต่ละกลุ่มสินค้าในระบบใช้อยู่ (ถ้าชื่อสินค้าตรงกับกลุ่มเหล่านี้ ให้ใช้ชนิดของกลุ่มนั้นเป็นหลัก):${gtxt}` : ''}`;
+  return PROMPT.replace(/\nตอบกลับเป็น JSON เท่านั้น$/, extra + '\nตอบกลับเป็น JSON เท่านั้น');
+}
 
 /* ==================== แสดงความคืบหน้า / error ==================== */
 let t0 = 0, tick = null, curStage = '', liveBase = '';
@@ -514,7 +590,7 @@ $('readBtn').onclick = async () => {
     setStep('prep', 'done', `${okImgs.length} รูป · รวม ${kb(total)}` + (bad.length ? ` · ข้าม ${bad.length} รูปที่เปิดไม่ได้` : ''));
     if (bad.length) log.push('ข้ามรูป: ' + bad.map(b => `${b.file.name} (${b.error})`).join('; '));
 
-    const parts = [{ text: PROMPT }];
+    const parts = [{ text: buildPrompt() }];
     okImgs.forEach(i => parts.push({ inline_data: { mime_type: i.mime, data: i.b64 } }));
 
     /* 2-3) ส่งให้ AI + รับผลแบบ stream */
@@ -536,6 +612,7 @@ $('readBtn').onclick = async () => {
     setStep('read', 'done'); stage('check', '');
     live('กำลังตรวจความถูกต้องของข้อมูล…');
     const items = Array.isArray(data.items) ? data.items.filter(x => x && (x.product_name || x.qty)) : [];
+    items.forEach(x => { x.attrs = normAttrs(x.attrs); });
     data.items = items;
     if (!items.length) throw new ReadErr('empty', 'AI อ่านไม่พบรายการสินค้าในรูป — ลองใช้รูปที่เห็นรายการสินค้าชัดขึ้น');
     setStep('check', 'done', `พบสินค้า ${items.length} รายการ`);
@@ -570,6 +647,10 @@ function itemHtml(n, it) {
     <label>กลุ่มสินค้า</label>
     <div class="flex"><input class="inp" data-k="grp" list="dlGrp" value="${esc(it.product_name)}" autocomplete="off" style="margin-top:.25rem"><button type="button" class="mini cp" data-t="grp" aria-label="คัดลอก">📋</button><button type="button" class="mini cl" data-t="grp" aria-label="ล้าง">✕</button></div>
     <div class="match" data-k="match"></div>
+    <label>ตัวเลือกสินค้า (ชนิด = ค่า ไม่บังคับ)</label>
+    <div data-k="ats"></div>
+    <div class="atn" data-k="atn"></div>
+    <button type="button" class="lnk ata" style="margin-top:.3rem"><i class="bi bi-plus-lg"></i> เพิ่มตัวเลือก</button>
     <label>ลิงก์สินค้า (ไม่บังคับ)</label>
     <div class="flex"><input class="inp" data-k="url" type="url" value="${esc(it.product_url)}" placeholder="Shopee, Lazada" style="margin-top:.25rem"><button type="button" class="mini cp" data-t="url" aria-label="คัดลอก">📋</button></div>
     <div class="row"><label>จำนวนซื้อ<input class="inp" data-k="qty" type="number" min="0" inputmode="decimal" value="${esc(q)}"></label><label>หน่วยซื้อ<input class="inp" data-k="ub" list="dlUnit" placeholder="ลัง"></label></div>
@@ -586,8 +667,10 @@ function addItem(it) {
   const row = d.firstElementChild; $('items').appendChild(row); renumber();
   row.querySelector('.rmi').onclick = () => { if ($('items').children.length <= 1) return; row.remove(); renumber(); calcSum(); };
   row.querySelectorAll('.cp').forEach(b => b.onclick = () => copyText(f(row, b.dataset.t).value, b));
-  row.querySelectorAll('.cl').forEach(b => b.onclick = () => { const i = f(row, b.dataset.t); i.value = ''; i.focus(); checkMatch(row); });
-  checkMatch(row);
+  row.querySelectorAll('.cl').forEach(b => b.onclick = () => { const i = f(row, b.dataset.t); i.value = ''; i.focus(); checkMatch(row); attrNote(row); });
+  row.querySelector('.ata').onclick = () => { const a = addAttr(row); a.querySelector(a.querySelector('[data-k="an"]').value ? '[data-k="av"]' : '[data-k="an"]').focus(); };
+  normAttrs(it.attrs).forEach(a => addAttr(row, a.name, a.value));
+  checkMatch(row); attrNote(row);
 }
 function checkMatch(row) {
   const note = f(row, 'match'), typed = norm(f(row, 'grp').value);
@@ -615,7 +698,8 @@ function calcSum() {
 $('review').addEventListener('input', e => {
   const row = e.target.closest('.it'), k = e.target.dataset.k;
   if (row && (k === 'up' || k === 'qty')) { const u = num(f(row, 'up').value), q = num(f(row, 'qty').value); if (u > 0 && q > 0) f(row, 'price').value = Math.round(u * q * 100) / 100; }
-  if (row && k === 'grp') checkMatch(row);
+  if (row && k === 'grp') { checkMatch(row); attrNote(row); }
+  if (row && (k === 'an' || k === 'av')) attrNote(row);
   calcSum();
 });
 $('addItemBtn').onclick = () => { addItem({}); calcSum(); };
@@ -639,7 +723,8 @@ function collect() {
   const items = [...$('items').children].map(r => ({
     category_name: f(r, 'cat').value.trim(), product_name: f(r, 'grp').value.trim(), product_url: f(r, 'url').value.trim(),
     qty: num(f(r, 'qty').value), unit_buy: f(r, 'ub').value.trim(), ratio: num(f(r, 'ratio').value), unit_sell: f(r, 'us').value.trim(),
-    unit_price: num(f(r, 'up').value), total_price: num(f(r, 'price').value)
+    unit_price: num(f(r, 'up').value), total_price: num(f(r, 'price').value),
+    attrs: attrRows(r).map(a => { const n = a.n.value.trim(), v = a.v.value.trim(), d = findDef(n); return n && v ? (d ? { id: d.id, name: d.name, value: v } : { name: n, value: v }) : null; }).filter(Boolean)
   })).filter(x => x.product_name);
   return {
     store_name: $('rStore').value.trim(), order_date: $('rDate').value, order_no: $('rOrderNo').value.trim(),
