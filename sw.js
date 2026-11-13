@@ -1,19 +1,22 @@
-/* SmartStock Lite wrapper service worker (v1.8) - เก็บเฉพาะตัวห่อหน้าจอ ไม่เก็บข้อมูลแอป */
-const V = 'ssl-shell-v1.8';
-const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
-self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
-self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(k => Promise.all(k.filter(x => x !== V).map(x => caches.delete(x)))).then(() => self.clients.claim()));
+// Service worker v1.0.2 — ไม่รีเฟรชหน้าเอง (ผู้ใช้กดปุ่มรีเฟรชเอง)
+const CACHE = "linkhub-1.0.2";
+const SHELL = ["./", "index.html", "config.js", "manifest.webmanifest",
+  "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
+
+self.addEventListener("install", e => {
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
 });
-self.addEventListener('fetch', e => {
+self.addEventListener("activate", e => {
+  e.waitUntil(caches.keys()
+    .then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k))))
+    .then(() => self.clients.claim()));
+});
+// network-first สำหรับไฟล์ของเว็บเอง, ออฟไลน์ใช้แคช, API (ข้ามโดเมน) ไม่แตะ
+self.addEventListener("fetch", e => {
   const r = e.request, u = new URL(r.url);
-  if (r.method !== 'GET' || u.origin !== location.origin) return;
-  const isShell = r.mode === 'navigate' && (u.pathname.endsWith('/') || u.pathname.endsWith('/index.html'));
-  if (isShell) {                                   // หน้าหลัก: เอาจากเน็ตก่อน ถ้าออฟไลน์ใช้ตัวที่เก็บไว้
-    e.respondWith(fetch(r).then(res => { const cp = res.clone(); caches.open(V).then(c => c.put('./index.html', cp)); return res; })
-      .catch(() => caches.match('./index.html')));
-    return;
-  }
-  if (r.mode === 'navigate') return;               // หน้าอื่น เช่น ocr-reader.html ใช้เน็ตตามปกติ
-  e.respondWith(caches.match(r).then(m => m || fetch(r)));
+  if (r.method !== "GET" || u.origin !== location.origin) return;
+  e.respondWith(
+    fetch(r).then(res => { const cp = res.clone(); caches.open(CACHE).then(c => c.put(r, cp)); return res; })
+      .catch(() => caches.match(r, { ignoreSearch: true }).then(m => m || caches.match("index.html")))
+  );
 });
