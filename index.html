@@ -1,232 +1,67 @@
 <!DOCTYPE html>
-<html lang="th">
-<head>
+<html lang="th"><head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ศูนย์รวมระบบงาน</title>
-<meta name="theme-color" content="#10151f">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SmartStock Lite</title>
+<meta name="theme-color" content="#1E293B">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="SmartStock">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Dash">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="config.js"></script>
 <style>
-:root{--bg:#10151f;--surface:#192131;--line:#27324a;--text:#e8edf6;--mute:#8d9ab3;--accent:#5cc8f2;--pin:#f2b441;--ok:#4cd68a;--bad:#f0605d}
-*{box-sizing:border-box}
-html,body{overscroll-behavior-y:none}
-body{margin:0;background:var(--bg);color:var(--text);font:400 16px/1.5 "IBM Plex Sans Thai",system-ui,sans-serif;padding:env(safe-area-inset-top) 0 90px}
-.wrap{max-width:960px;margin:0 auto;padding:20px 16px}
-header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
-h1{font-size:20px;font-weight:600;margin:0}
-.hr{display:flex;align-items:center;gap:8px}
-.ver{color:var(--mute);font-size:12px}
-.rf,.inst{border:1px solid var(--line);background:var(--surface);color:var(--mute);border-radius:8px;cursor:pointer;height:30px}
-.rf{width:30px;display:grid;place-items:center;padding:0}
-.inst{padding:0 12px;font-size:13px;color:var(--accent);border-color:var(--accent)}
-.inst[hidden]{display:none}
-.rf svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.rf:hover{color:var(--text)}
-.rf.spin svg{animation:sp .8s linear infinite}
-@keyframes sp{to{transform:rotate(360deg)}}
-input,select,button{font:inherit;color:inherit}
-.search{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
-.search:focus,.f input:focus,.f select:focus{outline:2px solid var(--accent);outline-offset:1px}
-.chips{display:flex;gap:8px;overflow-x:auto;padding:12px 0 4px;scrollbar-width:none}
-.chip{flex:none;background:none;border:1px solid var(--line);border-radius:999px;padding:6px 14px;color:var(--mute);cursor:pointer}
-.chip.on{background:var(--accent);border-color:var(--accent);color:#08202b;font-weight:500}
-h2{font-size:14px;font-weight:500;color:var(--mute);margin:22px 0 10px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:10px}
-.card{position:relative;display:grid;grid-template-columns:52px 1fr auto;gap:14px;align-items:center;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--line);border-radius:10px;padding:12px 10px 12px 12px;text-decoration:none;color:inherit;transition:border-color .15s,box-shadow .15s}
-.card:hover{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 6px 22px #5cc8f21f}
-.card.on{border-left-color:var(--ok)}.card.off{border-left-color:var(--bad)}
-.ico{width:52px;height:52px;border-radius:12px;background:#0d1320;border:1px solid var(--line);box-shadow:inset 0 0 14px #5cc8f21a;display:grid;place-items:center;font-size:26px}
-.body{min-width:0}
-.t{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.s{color:var(--mute);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:19px}
-.meta{display:flex;gap:10px;align-items:center;margin-top:4px;font-size:12px;color:#66738d}
-.host{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.st{flex:none}.card.on .st{color:var(--ok)}.card.off .st{color:var(--bad)}
-.tool{display:flex;flex-direction:column;gap:6px}
-.tool button{width:32px;height:32px;border-radius:8px;border:1px solid var(--line);background:#141b2a;color:var(--mute);cursor:pointer;display:grid;place-items:center;padding:0}
-.tool button:hover{color:var(--text);border-color:var(--mute)}
-.tool .pin.on{background:var(--pin);border-color:var(--pin);color:#2a1c00}
-.tool svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.fab{position:fixed;right:20px;bottom:calc(20px + env(safe-area-inset-bottom));width:56px;height:56px;border-radius:50%;border:0;background:var(--accent);color:#08202b;font-size:30px;cursor:pointer;box-shadow:0 6px 20px #0008}
-dialog{background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:18px;padding:20px;width:min(420px,92vw)}
-dialog::backdrop{background:#000a}
-.f{display:grid;gap:4px;margin-bottom:12px;font-size:14px;color:var(--mute)}
-.f input,.f select{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;color:var(--text)}
-.row{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
-.btn{border:1px solid var(--line);background:none;border-radius:10px;padding:9px 16px;cursor:pointer}
-.btn.pri{background:var(--accent);border-color:var(--accent);color:#08202b;font-weight:600}
-.btn.del{color:var(--bad);margin-right:auto}
-.empty{color:var(--mute);text-align:center;padding:40px 0}
-#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#222c42;border-radius:10px;padding:10px 16px;opacity:0;pointer-events:none;transition:opacity .2s}
-#toast.show{opacity:1}
-@media (prefers-reduced-motion:reduce){*{transition:none!important}}
-</style>
-</head>
+html,body{height:100%;margin:0;background:#1E293B;font-family:Prompt,system-ui,sans-serif;overscroll-behavior:none}
+#shell{position:fixed;inset:0;display:flex;flex-direction:column;background:#1E293B;padding-top:env(safe-area-inset-top);overscroll-behavior:none}
+#fr{flex:1;width:100%;border:0;background:#F8F9FB}
+#bot{flex:none;height:env(safe-area-inset-bottom);background:#fff}
+#ld{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#F8F9FB;color:#475569;text-align:center;padding:24px}
+#ld img{width:96px;height:96px;border-radius:22px}
+.sp{width:28px;height:28px;border:3px solid #CBD5E1;border-top-color:#2563EB;border-radius:50%;animation:s 1s linear infinite}
+@keyframes s{to{transform:rotate(360deg)}}
+#ld button,#ld a{background:#2563EB;color:#fff;border:0;border-radius:8px;padding:.6rem 1rem;font:inherit;text-decoration:none}
+.hide{display:none!important}
+</style></head>
 <body>
-<div class="wrap">
-  <header><h1 id="title"></h1>
-    <div class="hr"><button class="inst" id="inst" hidden>ติดตั้ง</button><span class="ver" id="ver"></span>
-      <button class="rf" id="rf" aria-label="รีเฟรชข้อมูล"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 11-3-6.7L21 8M21 3v5h-5"/></svg></button></div></header>
-  <input class="search" id="q" type="search" placeholder="ค้นหาระบบงาน…" autocomplete="off">
-  <div class="chips" id="chips"></div>
-  <div id="list"></div>
+<div id="shell">
+ <iframe id="fr" title="SmartStock Lite" allow="camera; clipboard-write; fullscreen"></iframe>
+ <div id="bot"></div>
+ <div id="ld"><img src="icons/icon-192.png" alt=""><div class="sp" id="sp"></div><div id="lt">กำลังเปิด SmartStock Lite...</div>
+  <div id="la" class="hide" style="display:flex;gap:10px"><button onclick="load()">ลองใหม่</button><a id="direct" target="_blank" rel="noopener">เปิดโดยตรง</a></div></div>
 </div>
-<button class="fab" id="add" aria-label="เพิ่มระบบงาน">+</button>
-
-<dialog id="dlg"><form method="dialog" id="form">
-  <h1 id="dTitle" style="margin-bottom:14px"></h1>
-  <label class="f">ชื่อระบบ<input name="title" required></label>
-  <label class="f">คำอธิบายสั้น<input name="subtitle"></label>
-  <label class="f">ลิงก์ (URL)<input name="url" type="url" required placeholder="https://"></label>
-  <label class="f">ไอคอน (อีโมจิ)<input name="icon" maxlength="4" placeholder="📁"></label>
-  <label class="f">หมวดหมู่<input name="category" list="cats" placeholder="เช่น การเงิน"></label>
-  <datalist id="cats"></datalist>
-  <div class="row">
-    <button type="button" class="btn del" id="del">ลบ</button>
-    <button type="button" class="btn" id="cancel">ยกเลิก</button>
-    <button type="submit" class="btn pri">บันทึก</button>
-  </div>
-</form></dialog>
-<div id="toast" role="status"></div>
-
 <script>
-const C = window.CONFIG, $ = s => document.querySelector(s);
-const DEMO = !C.API_URL;
-let items = [], cat = "ทั้งหมด", editing = null, pin = sessionStorage.getItem("pin") || "";
-let pins = new Set(JSON.parse(localStorage.getItem("pins") || "[]"));
-$("#title").textContent = C.APP_TITLE; $("#ver").textContent = "v" + C.VERSION + (DEMO ? " · โหมดทดลอง" : "");
-
-const SAMPLE = [
- {id:"a1",title:"สมุดโน้ต",subtitle:"Bank",url:"https://example.com",icon:"🖥️",category:"การเงิน"},
- {id:"a2",title:"แพลตฟอร์ม",subtitle:"shopee lazada",url:"https://example.com",icon:"💰",category:"ขายของ"},
- {id:"a3",title:"ทำจ่ายหนุ่ม",subtitle:"shopee lazada",url:"https://example.com",icon:"🧾",category:"ขายของ"},
- {id:"a4",title:"คำนวณค่าน้ำ",subtitle:"",url:"https://example.com",icon:"💧",category:"บริหาร"},
- {id:"a5",title:"ขอใบอนุญาตประกอบการ",subtitle:"",url:"https://example.com",icon:"📁",category:"บริหาร"}];
-
-function toast(m,ms=2200){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove("show"),ms)}
-
-// ---------- API ----------
-async function load(){
-  if (DEMO) { items = JSON.parse(localStorage.getItem("demo") || "null") || SAMPLE; }
-  else {
-    try { const r = await fetch(C.API_URL + "?action=list"); items = (await r.json()).data || [];
-      localStorage.setItem("cache", JSON.stringify(items)); }
-    catch (e) { items = JSON.parse(localStorage.getItem("cache") || "[]"); toast("ออฟไลน์ แสดงข้อมูลล่าสุดที่เก็บไว้"); }
-  }
-  render(); checkStatus();
+/* ===== ตั้งค่า: ใส่ลิงก์ Web App ของ Apps Script (ลงท้ายด้วย /exec) ===== */
+const APP_URL = 'https://script.google.com/macros/s/AKfycbxJevvAuTK7uPMAtPxJ5Txgr4Csol1KPTorFPpWM8BSL2lUIns-pDYiEX_y12dErD8X/exec';
+/* ================================================================ */
+const $ = id => document.getElementById(id), fr = $('fr');
+const go = (new URLSearchParams(location.search).get('go') || '').replace(/[^a-z]/g, '');
+const ready = /^https:\/\/script\.google\.com\/.+\/exec/.test(APP_URL);
+let slow = 0;
+function fail(msg) { $('sp').classList.add('hide'); $('lt').textContent = msg; $('la').classList.remove('hide'); if (ready) $('direct').href = APP_URL; else $('direct').classList.add('hide'); }
+function load() {
+  if (!ready) return fail('ยังไม่ได้ตั้งค่าลิงก์ Web App — เปิดไฟล์ index.html แล้วใส่ลิงก์ในบรรทัด APP_URL');
+  if (!navigator.onLine) return fail('ไม่มีอินเทอร์เน็ต กรุณาเชื่อมต่อแล้วลองใหม่');
+  $('ld').classList.remove('hide'); $('sp').classList.remove('hide'); $('la').classList.add('hide'); $('lt').textContent = 'กำลังเปิด SmartStock Lite...';
+  clearTimeout(slow); slow = setTimeout(() => { $('lt').textContent = 'ใช้เวลานานกว่าปกติ... (Google กำลังเริ่มระบบ)'; $('la').classList.remove('hide'); if (ready) $('direct').href = APP_URL; }, 12000);
+  fr.src = APP_URL + (go ? (APP_URL.includes('?') ? '&' : '?') + 'go=' + go : '');
 }
-async function call(action, item, id){
-  if (DEMO) {
-    if (action==="add") items.push({...item,id:Math.random().toString(36).slice(2,8)});
-    if (action==="update") items = items.map(x=>x.id===id?{...x,...item}:x);
-    if (action==="delete") items = items.filter(x=>x.id!==id);
-    localStorage.setItem("demo", JSON.stringify(items)); return true;
-  }
-  if (!pin) { pin = prompt("รหัสแอดมิน") || ""; sessionStorage.setItem("pin", pin); }
-  const r = await fetch(C.API_URL, {method:"POST", body:JSON.stringify({action,item,id,pin})});
-  const j = await r.json();
-  if (!j.ok) { toast(j.error || "เกิดข้อผิดพลาด"); sessionStorage.removeItem("pin"); pin=""; return false; }
-  await load(); return true;
-}
-async function checkStatus(){
-  if (DEMO) return;
-  for (const it of items) {
-    fetch(C.API_URL+"?action=status&url="+encodeURIComponent(it.url)).then(r=>r.json())
-     .then(j=>{const c=document.querySelector(`[data-card="${it.id}"]`),t=document.querySelector(`[data-st="${it.id}"]`);
-       if(c){c.classList.remove("on","off");c.classList.add(j.online?"on":"off")} if(t) t.textContent=j.online?"ออนไลน์":"ไม่ตอบสนอง"}).catch(()=>{});
-  }
-}
+fr.addEventListener('load', () => { if (fr.src && fr.src !== 'about:blank') { clearTimeout(slow); $('ld').classList.add('hide'); } });
+addEventListener('online', () => { if (!$('ld').classList.contains('hide')) load(); });
 
-// ---------- Render ----------
-function card(it){
-  const p = pins.has(it.id);
-  let host=""; try{host=new URL(it.url).hostname}catch(e){}
-  return `<a class="card" data-card="${it.id}" href="${it.url}" target="_blank" rel="noopener">
-    <div class="ico">${it.icon||"🔗"}</div>
-    <div class="body"><div class="t">${esc(it.title)}</div><div class="s">${esc(it.subtitle||"")}</div>
-      <div class="meta"><span class="host">${esc(host)}</span><span class="st" data-st="${it.id}"></span></div></div>
-    <span class="tool">
-      <button class="pin ${p?"on":""}" data-pin="${it.id}" aria-label="ปักหมุด"><svg viewBox="0 0 24 24"><path d="M12 17v5M9 3h6l-1 7 3 3v2H7v-2l3-3z"/></svg></button>
-      <button data-edit="${it.id}" aria-label="แก้ไข"><svg viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg></button></span></a>`;
-}
-const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-function render(){
-  const cats = ["ทั้งหมด", ...new Set(items.map(i=>i.category).filter(Boolean))];
-  $("#chips").innerHTML = cats.map(c=>`<button class="chip ${c===cat?"on":""}" data-cat="${esc(c)}">${esc(c)}</button>`).join("");
-  $("#cats").innerHTML = cats.slice(1).map(c=>`<option value="${esc(c)}">`).join("");
-  const q = $("#q").value.trim().toLowerCase();
-  const f = items.filter(i => (cat==="ทั้งหมด"||i.category===cat) && (i.title+" "+i.subtitle+" "+i.category).toLowerCase().includes(q));
-  const pinned = f.filter(i=>pins.has(i.id)), rest = f.filter(i=>!pins.has(i.id));
-  $("#list").innerHTML = !f.length ? `<div class="empty">ไม่พบระบบงาน ลองค้นด้วยคำอื่น หรือกด + เพื่อเพิ่ม</div>` :
-    (pinned.length ? `<h2>ปักหมุด</h2><div class="grid">${pinned.map(card).join("")}</div>` : "") +
-    (rest.length ? `<h2>${pinned.length?"ระบบอื่นๆ":"ทุกระบบ"}</h2><div class="grid">${rest.map(card).join("")}</div>` : "");
-}
-
-// ---------- Events ----------
-$("#q").oninput = render;
-document.addEventListener("click", e => {
-  const t = e.target.closest("[data-cat],[data-pin],[data-edit]"); if (!t) return;
-  if (t.dataset.cat) { cat = t.dataset.cat; return render(); }
-  e.preventDefault();
-  if (t.dataset.pin) { const id=t.dataset.pin; pins.has(id)?pins.delete(id):pins.add(id);
-    localStorage.setItem("pins", JSON.stringify([...pins])); render(); checkStatus(); }
-  if (t.dataset.edit) openForm(items.find(i=>i.id===t.dataset.edit));
+/* ===== ติดตั้งไอคอน: หน้าตั้งค่าในแอปขอสถานะ/สั่งติดตั้งผ่านข้อความ ===== */
+let dp = null, peer = null;
+const standalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const state = () => ({ type: 'SSL_STATE', canPrompt: !!dp, installed: standalone(), ios });
+const push = () => { try { peer && peer.postMessage(state(), '*'); } catch (e) {} };
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); dp = e; push(); });
+addEventListener('appinstalled', () => { dp = null; push(); });
+addEventListener('message', e => {
+  if (!/^https:\/\/([a-z0-9-]+\.)*(googleusercontent|google)\.com$/.test(e.origin) || !e.data) return;
+  if (e.data.type === 'SSL_HELLO') { peer = e.source; push(); }
+  if (e.data.type === 'SSL_INSTALL' && dp) { const p = dp; p.prompt(); p.userChoice.then(() => { dp = null; push(); }); }
 });
-function openForm(it){
-  editing = it || null; const f = $("#form");
-  $("#dTitle").textContent = it ? "แก้ไขระบบงาน" : "เพิ่มระบบงาน";
-  ["title","subtitle","url","icon","category"].forEach(k => f[k].value = it ? (it[k]||"") : "");
-  $("#del").style.display = it ? "" : "none"; $("#dlg").showModal();
-}
-$("#add").onclick = () => openForm();
-$("#cancel").onclick = () => $("#dlg").close();
-$("#form").onsubmit = async e => {
-  const f = e.target, item = Object.fromEntries(["title","subtitle","url","icon","category"].map(k=>[k,f[k].value.trim()]));
-  if (editing) item.pinned = false;
-  if (await call(editing?"update":"add", item, editing?.id)) { toast("บันทึกแล้ว"); render(); checkStatus(); }
-};
-$("#del").onclick = async () => {
-  if (!confirm("ลบ “"+editing.title+"” ?")) return;
-  if (await call("delete", null, editing.id)) { $("#dlg").close(); toast("ลบแล้ว"); render(); }
-};
-
-// ---------- ปุ่มรีเฟรช (ไม่รีเฟรชหน้าเอง ต้องกดเท่านั้น) ----------
-let reloadOnUpdate = false;
-const reg = "serviceWorker" in navigator ? navigator.serviceWorker.register("sw.js").catch(()=>null) : Promise.resolve(null);
-if ("serviceWorker" in navigator)
-  navigator.serviceWorker.addEventListener("controllerchange", () => { if (reloadOnUpdate) location.reload(); });
-$("#rf").onclick = async () => {
-  const b = $("#rf"); b.classList.add("spin");
-  try {
-    reloadOnUpdate = true; setTimeout(() => reloadOnUpdate = false, 4000);
-    await load();
-    const r = await reg; if (r) await r.update();
-    toast("อัปเดตข้อมูลแล้ว");
-  } catch (e) { toast("รีเฟรชไม่สำเร็จ"); }
-  b.classList.remove("spin");
-};
-
-// ---------- ติดตั้งไอคอนลงหน้าจอหลัก ----------
-let deferred = null;
-const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
-const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-if (!standalone && isIOS) $("#inst").hidden = false;
-addEventListener("beforeinstallprompt", e => { e.preventDefault(); deferred = e; if (!standalone) $("#inst").hidden = false; });
-addEventListener("appinstalled", () => { $("#inst").hidden = true; toast("ติดตั้งแล้ว"); });
-$("#inst").onclick = async () => {
-  if (deferred) { deferred.prompt(); await deferred.userChoice; deferred = null; $("#inst").hidden = true; }
-  else toast("แตะปุ่มแชร์ แล้วเลือก “เพิ่มไปยังหน้าจอโฮม”", 5000);
-};
+if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 load();
-</script>
-</body>
-</html>
+</script></body></html>
